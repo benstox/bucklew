@@ -1,6 +1,8 @@
 (ns bucklew.events)
 
-(defrecord Event [nomen type])
+(defrecord Event [nomen amount type])
 
-(defrecord AttackEvent [nomen type])
-
+(def attack-event (map->Event
+	{:nomen :take-damage,
+	 :amount 5
+	 :type nil}))

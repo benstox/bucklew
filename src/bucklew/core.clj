@@ -1,7 +1,16 @@
 (ns bucklew.core
-  (:require [bucklew.udp :as udp]))
+  (:require
+    [bucklew.udp :as udp]
+    [bucklew.components :as components]
+    [bucklew.events :as events]
+    [bucklew.entities :as entities]))
 
 (def x 1)
+
+(def player (map->Entity
+  {:id 1
+   :nomen :player
+   :components [(physics-component 20)]}))
 
 (defn -main
   "I don't do a whole lot ... yet."

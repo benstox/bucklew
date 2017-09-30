@@ -7,10 +7,10 @@
 
 (def x 1)
 
-(def player (map->Entity
+(def player (entities/map->Entity
   {:id 1
    :nomen :player
-   :components [(physics-component 20)]}))
+   :components [(components/physics-component 20)]}))
 
 (defn -main
   "I don't do a whole lot ... yet."

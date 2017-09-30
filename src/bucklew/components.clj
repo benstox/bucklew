@@ -6,6 +6,11 @@
 (defn physics-component
 	([] {
 		:nomen :physics
+		:priority 100
 		:hp 10
 		:take-damage normal-take-damage})
-	([hp]))
+	([hp] {
+		:nomen :physics
+		:priority 100
+		:hp hp
+		:take-damage normal-take-damage}))

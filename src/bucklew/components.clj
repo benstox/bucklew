@@ -1,7 +1,12 @@
 (ns bucklew.components
 	(:require [bucklew.helpers :as help]))
 
-(defn normal-take-damage [this] (help/find-first #(= (:nomen %) :physics) (:components this)))
+(defn normal-take-damage [this damage-amount]
+	(let [physics (help/find-first #(= (:nomen %) :physics) (:components this))
+		  old-hp (:hp physics)
+		  new-hp (- old-hp damage-amount)]
+		)
+	
 
 (defn physics-component
 	([] {

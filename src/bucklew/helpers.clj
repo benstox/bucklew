@@ -13,3 +13,8 @@
 (defn nomen-is [nomen coll]
   "Check whether the name of this object is a certain name."
   (= (:nomen coll) nomen))
+
+(defn find-physics-component [components]
+  (let [nomen-is-physics (partial nomen-is :physics)
+         physics (find-first nomen-is-physics components)]
+    physics))

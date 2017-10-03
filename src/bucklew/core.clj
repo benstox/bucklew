@@ -5,12 +5,16 @@
     [bucklew.entities :as entities]
     [bucklew.events :as events]))
 
-(def x 1)
 
 (def player (entities/map->Entity
   {:id 1
-   :nomen :player
-   :components [(components/physics-component 20)]}))
+   :nomen "Player"
+   :components [(components/physics 20) (components/armour 2)]}))
+
+(def warrior (entities/map->Entity
+  {:id 2
+   :nomen "Warrior"
+   :components [(components/physics 20) (components/armour 1)]}))
 
 (defn -main
   "I don't do a whole lot ... yet."
@@ -25,27 +29,27 @@
   ; (println (udp/get post-traumatic-morris :likes-other-cats))
   (println (str player))
   (println "Attack for 5")
-  (def player (entities/receive-event player events/attack-event))
+  (def player (entities/receive-event player events/take-damage-event))
   (println (str player))
 
   (println "Put on strength 2 armour.")
-  (def player (entities/add-component player (components/armour-component)))
+  (def player (entities/add-component player (components/armour)))
   (println (str player))
   (println "Attack for 5")
-  (def player (entities/receive-event player events/attack-event))
+  (def player (entities/receive-event player events/take-damage-event))
   (println (str player))
   
   (println "Put on another strength 2 armour.")
-  (def player (entities/add-component player (components/armour-component)))
+  (def player (entities/add-component player (components/armour)))
   (println (str player))
   (println "Attack for 5")
-  (def player (entities/receive-event player events/attack-event))
+  (def player (entities/receive-event player events/take-damage-event))
   (println (str player))
   
   (println "Put on strength 1000 armour.")
-  (def player (entities/add-component player (components/armour-component 1000)))
+  (def player (entities/add-component player (components/armour 1000)))
   (println (str player))
   (println "Attack for 5")
-  (def player (entities/receive-event player events/attack-event))
+  (def player (entities/receive-event player events/take-damage-event))
   (println (str player))
   )

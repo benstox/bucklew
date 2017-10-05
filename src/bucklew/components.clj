@@ -1,6 +1,7 @@
 (ns bucklew.components
   (:require [bucklew.helpers :as help]
-            [bucklew.events :as events]))
+            [bucklew.events :as events]
+            [bucklew.entities :as entities]))
 
 ;; COMPONENT FUNCTIONS
 ;; * always take [this event component-i] arguments,
@@ -43,55 +44,27 @@
 
 ;; COMPONENTS
 
-(def normal-physics {
-  :nomen :physics
-  :priority 100
-  :max-hp 10
-  :hp 10
-  :strength 5
-  :type :physical
-  :take-damage normal-take-damage
-  :make-attack normal-boost-amount})
+(defrecord LocationComponent [nomen priority x y])
+(defn Location [& args] (map->LocationComponent (into args {:nomen :location, :priority 1})))
 
-(defn physics
-  "Creates a physics component."
-  ([] normal-physics)
-  ([hp] (assoc normal-physics :hp hp :max-hp hp))
-  ([hp take-damage-fn]
-    (assoc normal-physics
-      :hp hp
-      :max-hp hp
-      :take-damage take-damage-fn)))
+(defrecord PhysicsComponent [nomen priority max-hp hp strength type take-damage make-attack])
+(defn Physics [& args] (map->PhysicsComponent (into args {:nomen :physics
+                                                          :priority 100
+                                                          :max-hp 10
+                                                          :hp 10
+                                                          :strength 5
+                                                          :type :physical
+                                                          :take-damage normal-take-damage
+                                                          :make-attack normal-boost-amount})))
 
-(def normal-armour {
-  :nomen :armour
-  :priority 50
-  :strength 2
-  :type :physical
-  :take-damage normal-reduce-amount})
+(defrecord ArmourComponent [nomen priority strength type take-damage])
+(defn Armour [& args] (map->ArmourComponent (into args {:nomen :armour
+                                                        :priority 50
+                                                        :strength 2
+                                                        :type :physical
+                                                        :take-damage normal-reduce-amount})))
 
-(defn armour
-  "Creates an armour component."
-  ([] normal-armour)
-  ([strength] (assoc normal-armour :strength strength))
-  ([strength type] (assoc normal-armour :strength strength :type type))
-  ([strength type reduce-damage-fn]
-     (assoc normal-armour
-       :strength strength
-       :type type
-       :take-damage reduce-damage-fn)))
-
-(def normal-can-attack {
-  :nomen :can-attack
-  :priority 900
-  :strength 5
-  :make-attack normal-make-attack})
-
-(defn can-attack
-  "Creates a 'can attack' component."
-  ([] normal-can-attack)
-  ([strength] (assoc normal-can-attack :strength strength))
-  ([strength make-attack-fn]
-     (assoc normal-can-attack
-       :strength strength
-       :make-attack make-attack-fn)))
+(defrecord CanAttackComponent [nomen priority make-attack])
+(defn CanAttack [& args] (map->CanAttackComponent (into args {:nomen :can-attack
+                                                              :priority 900
+                                                              :make-attack normal-make-attack})))

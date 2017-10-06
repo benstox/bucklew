@@ -86,7 +86,7 @@
                   new-item (assoc item :equipped-in nomen-slots-to-use)
                   new-equipment (conj items-already-equipped new-item)
                   new-this (assoc-in this [:components component-i :contents] new-equipment)]
-              [new-this new-event])
+              [new-this new-event]) ; there is an appropriate slot so equip the item!
             [this event])) ; equipment full so no change
         [this event])) ; item cannot be equipped so no change
     [this event])) ; no item so no change

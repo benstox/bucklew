@@ -1,17 +1,18 @@
 (ns bucklew.core-test
   (:require [clojure.test :refer :all]
-      [bucklew.components :as components]
-      [bucklew.entities :as entities]
+      [bucklew.components :as comps]
+      [bucklew.entities :as ents]
       [bucklew.events :as events]
+      [bucklew.items :as items]
       [bucklew.helpers :as help]))
 
 (deftest basic-test
   "Test some basics surrounding entities, components and events."
   ; create the character
-  (def player (entities/map->Entity
+  (def player (ents/map->Entity
     {:id 1
      :nomen "Player"
-     :components [(components/Physics {:hp 20 :max-hp 20})]}))
+     :components [(comps/Physics {:hp 20 :max-hp 20})]}))
   (def physics (help/find-physics-component (:components player)))
   (is (= (str player) "Player. 20/20 HP."))
   (is (= (:id player) 1))
@@ -24,14 +25,14 @@
   (is (= (str player) "Player. You, the player character. 20/20 HP."))
 
   ; attack for 5
-  (let [[attacked-player event] (entities/receive-event player events/take-damage-event)]
+  (let [[attacked-player event] (ents/receive-event player events/take-damage-event)]
     (is (not= player attacked-player))
     (def physics (help/find-physics-component (:components attacked-player)))
     (is (= (:max-hp physics) 20))
     (is (= (:hp physics) 15))
 
     ; add a strength 2 armour component
-    (let [player (entities/add-component attacked-player (components/Armour))]
+    (let [player (ents/add-component attacked-player (comps/Armour))]
       (def physics (help/find-physics-component (:components player)))
       (is (= (count (:components player)) 2))
       (is (= (:nomen (first (:components player))) :armour))
@@ -41,12 +42,12 @@
       (is (= (:hp physics) 15))
 
       ; attack for 5
-      (let [[player event] (entities/receive-event player events/take-damage-event)]
+      (let [[player event] (ents/receive-event player events/take-damage-event)]
         (def physics (help/find-physics-component (:components player)))
         (is (= (:hp physics) 12))
 
         ; put on another strength 2 armour component
-        (let [player (entities/add-component player (components/Armour))]
+        (let [player (ents/add-component player (comps/Armour))]
           (def physics (help/find-physics-component (:components player)))
           (is (= (:hp physics) 12))
           (is (= (count (:components player)) 3))
@@ -55,12 +56,12 @@
           (is (= (:nomen (last (:components player))) :physics))
               
           ; attack for 5
-          (let [[player event] (entities/receive-event player events/take-damage-event)]
+          (let [[player event] (ents/receive-event player events/take-damage-event)]
             (def physics (help/find-physics-component (:components player)))
             (is (= (:hp physics) 11))
 
             ; put on a strength 1000 armour component
-            (let [player (entities/add-component player (components/Armour {:strength 1000}))]
+            (let [player (ents/add-component player (comps/Armour {:strength 1000}))]
               (def physics (help/find-physics-component (:components player)))
               (is (= (:hp physics) 11))
               (is (= (count (:components player)) 4))
@@ -70,63 +71,63 @@
               (is (= (:nomen (last (:components player))) :physics))
 
               ; attack for 5
-              (let [[player event] (entities/receive-event player events/take-damage-event)]
+              (let [[player event] (ents/receive-event player events/take-damage-event)]
                 (def physics (help/find-physics-component (:components player)))
                 (is (= (:hp physics) 11))
                           
                 ; remove armour
-                (let [player (entities/remove-components-by-nomen player :armour)]
+                (let [player (ents/remove-components-by-nomen player :armour)]
                   (is (= (count (:components player)) 1))
                               
                   ; attack for 5
-                  (let [[player event] (entities/receive-event player events/take-damage-event)]
+                  (let [[player event] (ents/receive-event player events/take-damage-event)]
                     (def physics (help/find-physics-component (:components player)))
                     (is (= (:hp physics) 6))
                                   
                     ; remove all components
-                    (def empty-player (entities/clear-components player))
+                    (def empty-player (ents/clear-components player))
                     (is (= (str empty-player) "Player. You, the player character."))
                                   
                     ; attack for 5
-                    (let [[empty-attacked-player event] (entities/receive-event empty-player events/take-damage-event)]
+                    (let [[empty-attacked-player event] (ents/receive-event empty-player events/take-damage-event)]
                       (is (= empty-player empty-attacked-player))
   ))))))))))
   )
 
 (deftest sort-components
   "Test whether components sort properly by priority."
-  (def player (entities/map->Entity
+  (def player (ents/map->Entity
     {:id 1
      :nomen "Player"
-     :components [(components/Physics)
-                  (components/Armour)]}))
+     :components [(comps/Physics)
+                  (comps/Armour)]}))
   (is (= (:priority (first (:components player))) 100))
   (is (= (:priority (last (:components player))) 50))
-  (def player (entities/sort-components player))
+  (def player (ents/sort-components player))
   (is (= (:priority (last (:components player))) 100))
   (is (= (:priority (first (:components player))) 50)))
 
 (deftest basic-attack
   "Test basic attacking."
-  (def player (entities/sort-components
-    (entities/map->Entity {
+  (def player (ents/sort-components
+    (ents/map->Entity {
       :id 1
       :nomen "Player"
       :components [
-        (components/Armour {:strength 2})
-        (components/Physics {:max-hp 20 :hp 20})
-        (components/CanAttack)]})))
-  (def warrior (entities/sort-components
-    (entities/map->Entity {
+        (comps/Armour {:strength 2})
+        (comps/Physics {:max-hp 20 :hp 20})
+        (comps/CanAttack)]})))
+  (def warrior (ents/sort-components
+    (ents/map->Entity {
       :id 2
       :nomen "Warrior"
       :components [
-        (components/Armour {:strength 1})
-        (components/Physics {:max-hp 20 :hp 20})
-        (components/CanAttack)]})))
+        (comps/Armour {:strength 1})
+        (comps/Physics {:max-hp 20 :hp 20})
+        (comps/CanAttack)]})))
   ; make the player attack the warrior
   (let [make-attack-event (assoc events/make-attack-event :target warrior)
-        [player {:keys [nomen amount type target] :as make-attack-event-after} :as result] (entities/receive-event player make-attack-event)
+        [player {:keys [nomen amount type target] :as make-attack-event-after} :as result] (ents/receive-event player make-attack-event)
         [target-entity take-damage-event] target
         player-physics (help/find-physics-component (:components player))
         player-hp (:hp player-physics)
@@ -135,3 +136,45 @@
     (is (= target-hp 16))
     (is (= player-hp 20)))
   )
+
+(deftest add-item
+  "Test add-item method"
+  (def player (ents/sort-components
+    (ents/map->Entity {
+      :id 1
+      :nomen "Player"
+      :components [
+        (comps/Armour {:strength 2})
+        (comps/Physics {:max-hp 20 :hp 20})
+        (comps/CanAttack)
+        (comps/Inventory)
+        (comps/EquipmentSlot {:nomen :hand :desc "Right hand"})]})))
+  (def player (ents/receive-event player (events/map->Event {:nomen :add-item :target (ents/map->Entity {:nomen "Garbanzo bean"})})))
+  (def nomen-is-inventory (partial help/nomen-is :inventory))
+  (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
+  (is (= (count inventory) 1))
+  (is (= (:nomen (first inventory)) "Garbanzo bean"))
+  (def player (ents/add-item player items/sword))
+  (is (= (count inventory) 1))
+  (def nomen-is-hand (partial help/nomen-is :hand))
+  (def right-hand (:contents (first (filter nomen-is-hand (:components player)))))
+  (is (= (count right-hand) 1))
+  (is (= (:nomen (first right-hand)) "Sword"))
+  )
+
+; (deftest equipping
+;   "Test equipping and equipment."
+;   (def player (ents/sort-components
+;     (ents/map->Entity {
+;       :id 1
+;       :nomen "Player"
+;       :components [
+;         (comps/Armour {:strength 2})
+;         (comps/Physics {:max-hp 20 :hp 20})
+;         (comps/CanAttack)
+;         (comps/Inventory)]})))
+;   (is (empty? (ents/where-to-equip player)))
+;   (is (= (count (ents/where-to-equip items/sword)) 1))
+;   (is (= (first (ents/where-to-equip items/sword)) :hand))
+;   )
+  

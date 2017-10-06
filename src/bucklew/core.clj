@@ -1,24 +1,28 @@
 (ns bucklew.core
   (:require
     [bucklew.udp :as udp]
-    [bucklew.components :as components]
-    [bucklew.entities :as entities]
-    [bucklew.events :as events]))
+    [bucklew.components :as comps]
+    [bucklew.entities :as ents]
+    [bucklew.events :as events]
+    [bucklew.items :as items]))
 
 
 (def player 
-  (entities/sort-components
-    (entities/map->Entity {:id 1
+  (ents/sort-components
+    (ents/map->Entity {:id 1
                            :nomen "Player"
-                           :components [(components/Armour {:strength 2})
-                                        (components/Physics {:max-hp 20 :hp 20})
-                                        (components/CanAttack)]})))
+                           :components [(comps/Armour {:strength 2})
+                                        (comps/Physics {:max-hp 20 :hp 20})
+                                        (comps/CanAttack)
+                                        (comps/Inventory)
+                                        (comps/Location {:x 1 :y 1})
+                                        (comps/Equipment)]})))
 
-(def warrior (entities/map->Entity
+(def warrior (ents/map->Entity
   {:id 2
    :nomen "Warrior"
-   :components [(components/Armour {:strength 1})
-                (components/Physics {:max-hp 20 :hp 20})]}))
+   :components [(comps/Armour {:strength 1})
+                (comps/Physics {:max-hp 20 :hp 20})]}))
 
 (defn -main
   "I don't do a whole lot ... yet."

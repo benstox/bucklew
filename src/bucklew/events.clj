@@ -4,10 +4,10 @@
 
 ;example 
 (def take-damage-event (map->Event
-	{:nomen :take-damage,
-	 :amount 5}))
+  {:nomen :take-damage,
+   :amount 5}))
 
 ;example
 (def make-attack-event (map->Event
-    {:nomen :make-attack,
-     :amount 0}))
+  {:nomen :make-attack,
+   :amount 0}))

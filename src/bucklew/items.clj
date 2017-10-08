@@ -9,3 +9,6 @@
 (def shield (ents/map->Entity {:nomen "Shield"
                                :components [(comps/Armour)
                                             (comps/CanBeEquipped)]}))
+
+(def pizza (ents/map->Entity {:nomen "Pizza"
+	                          :components []}))

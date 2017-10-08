@@ -76,14 +76,14 @@
               num-slots-required (:slots-required can-be-equipped)
               right-type-slots (filter #(contains? possible-slot-types (:type %)) (:slots equipment))
               items-already-equipped (:contents equipment)
-              filled-slots (reduce #(into %1 (:equipped-in %2)) #{} items-already-equipped)
+              filled-slots (reduce #(into %1 (:equipped-in %2)) #{} (flatten (map :components items-already-equipped)))
               possible-slots (filter #(not (contains? filled-slots (:nomen %))) right-type-slots)
               num-possible-slots (count possible-slots)]
           (if (< num-slots-required num-possible-slots)
             (let [new-event (assoc event :target nil)
                   slots-to-use (take num-slots-required possible-slots)
                   nomen-slots-to-use (into [] (map :nomen slots-to-use))
-                  new-item (assoc item :equipped-in nomen-slots-to-use)
+                  new-item (assoc-in item [:components can-be-equipped-i :equipped-in] nomen-slots-to-use)
                   new-equipment (conj items-already-equipped new-item)
                   new-this (assoc-in this [:components component-i :contents] new-equipment)]
               [new-this new-event]) ; there is an appropriate slot so equip the item!
@@ -125,7 +125,17 @@
                                                               :priority 900
                                                               :make-attack normal-make-attack})))
 
-(defrecord InventoryComponent [nomen priority contents capacity add-item])
+(defrecord InventoryComponent [nomen priority contents capacity add-item]
+  Object
+  (toString [this]
+    "Override str method."
+    (let [contents (:contents this)
+          num-items (count contents)
+          capacity (:capacity this)]
+      (str "Inventory (" num-items "/" capacity ")\n"
+        (apply str
+          (for [item contents]
+            (str "* " item "\n")))))))
 (defn Inventory [& args] (map->InventoryComponent (into args {:nomen :inventory
                                                               :priority 200
                                                               :contents []

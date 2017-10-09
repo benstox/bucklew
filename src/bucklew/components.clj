@@ -79,7 +79,7 @@
               filled-slots (reduce #(into %1 (:equipped-in %2)) #{} (flatten (map :components items-already-equipped)))
               possible-slots (filter #(not (contains? filled-slots (:nomen %))) right-type-slots)
               num-possible-slots (count possible-slots)]
-          (if (< num-slots-required num-possible-slots)
+          (if (<= num-slots-required num-possible-slots)
             (let [new-event (assoc event :target nil)
                   slots-to-use (take num-slots-required possible-slots)
                   nomen-slots-to-use (into [] (map :nomen slots-to-use))

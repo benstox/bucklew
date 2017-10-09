@@ -18,3 +18,8 @@
   (let [nomen-is-physics (partial nomen-is :physics)
          physics (find-first nomen-is-physics components)]
     physics))
+
+(defn vec-remove
+  "remove elem in coll"
+  [coll pos]
+  (vec (concat (subvec coll 0 pos) (subvec coll (inc pos)))))

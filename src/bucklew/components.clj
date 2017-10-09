@@ -58,38 +58,67 @@
           capacity (:capacity inventory)]
       (if (< num-items capacity)
         (let [new-event (assoc event :target nil)
-              new-inventory (conj contents item)
+              new-item (ents/remove-components-by-nomen item :location)
+              new-inventory (conj contents new-item)
               new-this (assoc-in this [:components component-i :contents] new-inventory)]
           [new-this new-event]) ; there's a free space so add the item, and send the event away empty
         [this event])) ; inventory full so no change
     [this event])) ; no item so no change
   
 (defn equipment-add-item [this event component-i]
+  "Try to equip an item."
   (if-let [item (:target event)]
-    (let [nomen-is-can-be-equipped (partial help/nomen-is :can-be-equipped)
-          item-components-indexed (map vector (:components item) (range))
-          can-be-equipped-components (filter (comp nomen-is-can-be-equipped first) item-components-indexed)]
-      (if (not-empty can-be-equipped-components)
-        (let [[can-be-equipped can-be-equipped-i] (first can-be-equipped-components)
+    (let [get-equip-info-event (events/map->Event {:nomen :get-equip-info})
+          [item finished-equip-info-event] (ents/receive-event item get-equip-info-event)
+          equip-info (:target finished-equip-info-event)]
+      (if equip-info
+        (let [{:keys [slot-types slots-required can-be-equipped-i]} equip-info
               equipment (get-in this [:components component-i])
-              possible-slot-types (:slot-types can-be-equipped)
-              num-slots-required (:slots-required can-be-equipped)
-              right-type-slots (filter #(contains? possible-slot-types (:type %)) (:slots equipment))
+              right-type-slots (filter #(contains? slot-types (:type %)) (:slots equipment))
               items-already-equipped (:contents equipment)
               filled-slots (reduce #(into %1 (:equipped-in %2)) #{} (flatten (map :components items-already-equipped)))
               possible-slots (filter #(not (contains? filled-slots (:nomen %))) right-type-slots)
               num-possible-slots (count possible-slots)]
-          (if (<= num-slots-required num-possible-slots)
+          (if (<= slots-required num-possible-slots)
             (let [new-event (assoc event :target nil)
-                  slots-to-use (take num-slots-required possible-slots)
+                  slots-to-use (take slots-required possible-slots)
                   nomen-slots-to-use (into [] (map :nomen slots-to-use))
                   new-item (assoc-in item [:components can-be-equipped-i :equipped-in] nomen-slots-to-use)
-                  new-equipment (conj items-already-equipped new-item)
+                  new-item-minus-loc (ents/remove-components-by-nomen new-item :location)
+                  new-equipment (conj items-already-equipped new-item-minus-loc)
                   new-this (assoc-in this [:components component-i :contents] new-equipment)]
               [new-this new-event]) ; there is an appropriate slot so equip the item!
             [this event])) ; equipment full so no change
         [this event])) ; item cannot be equipped so no change
     [this event])) ; no item so no change
+
+(defn normal-get-equip-info [this event component-i]
+  "Gets called by a CanBeEquipped component and send back relevant info and index for equipping
+  this item."
+  (if (nil? (:target event))
+    (let [can-be-equipped-i component-i
+          can-be-equipped (get-in this [:components component-i])
+          {:keys [slot-types slots-required equipped-in] :as info} can-be-equipped
+          new-event (events/map->Event {:nomen :get-equip-info
+                                        :target (assoc info :can-be-equipped-i can-be-equipped-i)})]
+      [this new-event]) ; returns data under the new-event :target key
+    [this event])) ; only returns info if target is nil
+
+(defn unequip [this event component-i]
+  (if-let [slot (:target event)]
+    (let [equipment (get-in this [:components component-i])
+          equipped-items (:contents equipment)
+          get-equip-info-event (events/map->Event {:nomen :get-equip-info})
+          items-equip-info (map vector (map #(:target (second (ents/receive-event % get-equip-info-event))) equipped-items) (range))
+          [item-in-slot item-in-slot-i] (first (filter #(some #{slot} (:equipped-in (first %))) items-equip-info))
+          new-item (get equipped-items item-in-slot-i)
+          new-item-unequipped (assoc-in new-item [:components (:can-be-equipped-i item-in-slot) :equipped-in] [])
+          new-equipped-items (help/vec-remove equipped-items item-in-slot-i)
+          new-equipment (assoc equipment :contents new-equipped-items)
+          new-this (assoc-in this [:components component-i] new-equipment)
+          new-event (events/map->Event {:nomen :add-item :target new-item})]
+      [new-this new-event])
+    [this event])) ; no slot so no change
 
 ;; COMPONENTS
 
@@ -129,9 +158,7 @@
   Object
   (toString [this]
     "Override str method."
-    (let [contents (:contents this)
-          num-items (count contents)
-          capacity (:capacity this)]
+    (let [num-items (count contents)]
       (str "Inventory (" num-items "/" capacity ")\n"
         (apply str
           (for [item contents]
@@ -148,7 +175,18 @@
                                                                       :desc "Right hand"
                                                                       :priority 25})))
 
-(defrecord EquipmentComponent [nomen priority contents slots add-item])
+(defrecord EquipmentComponent [nomen priority contents slots add-item remove-item]
+  Object
+  (toString [this]
+    "Override str method."
+      (str "Equipment\n" (apply str
+        (for [slot slots
+              item contents]
+          (let [equipped-component (:target (second (ents/receive-event item (events/map->Event {:nomen :get-equip-info}))))
+                equipped-in (:equipped-in equipped-component)]
+            (if (some #{(:nomen slot)} equipped-in)
+              (str "* " (:desc slot) " -- " (:nomen item) "\n")
+              (str "* " (:desc slot) " -- [empty]\n"))))))))
 (defn Equipment [& args] (map->EquipmentComponent (into args {:nomen :equipment
                                                               :priority 25
                                                               :contents []
@@ -156,11 +194,13 @@
                                                                                 :priority
                                                                                 (for [slot normal-equipment-data]
                                                                                   (EquipmentSlot slot))))
-                                                              :add-item equipment-add-item})))
+                                                              :add-item equipment-add-item
+                                                              :remove-item unequip})))
 
-(defrecord CanBeEquippedComponent [nomen priority slot-types slots-required equipped-in])
+(defrecord CanBeEquippedComponent [nomen priority slot-types slots-required equipped-in get-equip-info])
 (defn CanBeEquipped [& args] (map->CanBeEquippedComponent (into args {:nomen :can-be-equipped
                                                                       :priority 200
                                                                       :slot-types #{:hand}
                                                                       :slots-required 1
-                                                                      :equipped-in []})))
+                                                                      :equipped-in []
+                                                                      :get-equip-info normal-get-equip-info})))

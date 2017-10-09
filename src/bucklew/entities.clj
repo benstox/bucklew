@@ -6,6 +6,8 @@
   (sort-components [this])
   (clear-components [this])
   (remove-components-by-nomen [this nomen])
+  (get-components-by-nomen [this nomen])
+  (get-indexed-components-by-nomen [this nomen])
   (add-item [this item])
   (where-to-equip [this])
   (receive-event [this event]))
@@ -27,6 +29,14 @@
     "Remove all components with a certain name."
     (let [nomen-is-nomen (partial help/nomen-is nomen)]
       (assoc this :components (into [] (remove nomen-is-nomen (:components this))))))
+  (get-components-by-nomen [this nomen]
+    "Return a sequence of components that share the given name."
+    (let [nomen-is-nomen (partial help/nomen-is nomen)]
+      (filter nomen-is-nomen (:components this))))
+  (get-indexed-components-by-nomen [this nomen]
+    "Return a sequence of components that share the given name."
+    (let [nomen-is-nomen (partial help/nomen-is nomen)]
+      (filter (comp nomen-is-nomen first) (map vector (:components this) (range)))))
   (receive-event [this event]
     "Handle the reception of an event by the entity. Return the entity and the event."
     (let [nomen (:nomen event)
@@ -51,5 +61,8 @@
           desc (:desc this)
           physics (help/find-physics-component (:components this))
           hp (:hp physics)
-          max-hp (:max-hp physics)]
-      (str nomen "." (when desc (str " " desc)) (when physics (str " " hp "/" max-hp " HP."))))))
+          max-hp (:max-hp physics)
+          components (:components this)]
+      (str
+        nomen "." (when desc (str " " desc)) (when physics (str " " hp "/" max-hp " HP.")) "\n"
+        (apply str (for [component components] (str component "\n")))))))

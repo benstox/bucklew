@@ -170,6 +170,8 @@
   (def equipment (first (filter nomen-is-equipment (:components player))))
   (is (= (count (:contents equipment)) 1))
   (is (= (:nomen (first (:contents equipment))) "Sword"))
+  (def nomen-is-location (partial help/nomen-is :location))
+  (is (empty? (filter nomen-is-location (:components (first (:contents equipment))))))
   (def sword-equipped-in (:equipped-in (first (filter :equipped-in (:components (first (:contents equipment)))))))
   (is (= (count sword-equipped-in) 1))
   (is (= (first sword-equipped-in) :right-hand))

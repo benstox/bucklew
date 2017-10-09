@@ -27,25 +27,6 @@
     "Remove all components with a certain name."
     (let [nomen-is-nomen (partial help/nomen-is nomen)]
       (assoc this :components (into [] (remove nomen-is-nomen (:components this))))))
-  (add-item [this item]
-    (let [components (:components this)
-          indexed-components (map vector components (range))
-          places-to-equip-item (where-to-equip item)
-          vacancy-container-components (filter
-                                         #(let [component (first %)] (and
-                                            (:contents component) ; get all the ones with :contents
-                                            (or
-                                              (= (:nomen component) :inventory)
-                                              (contains? places-to-equip-item (:nomen component)))
-                                            (or
-                                              (nil? (:capacity component)) ; and either there is no capacity limit
-                                              (< (count (:contents component)) (:capacity component))))) ; or there is a vacancy
-                                         indexed-components)
-          [vacant-comp vacant-i] (first vacancy-container-components)]
-      (assoc-in this [:components vacant-i :contents] (conj (:contents vacant-comp) item))))
-  (where-to-equip [this]
-    "Return a list of all the places, e.g. :hand, :head where this could be equipped."
-    (reduce #(into %1 (:equipment-slots %2)) #{} (:components this)))
   (receive-event [this event]
     "Handle the reception of an event by the entity. Return the entity and the event."
     (let [nomen (:nomen event)

@@ -138,7 +138,7 @@
   )
 
 (deftest add-item
-  "Test add-item method"
+  "Test add-item events"
   (def player (ents/sort-components
     (ents/map->Entity {
       :id 1
@@ -148,33 +148,29 @@
         (comps/Physics {:max-hp 20 :hp 20})
         (comps/CanAttack)
         (comps/Inventory)
-        (comps/EquipmentSlot {:nomen :hand :desc "Right hand"})]})))
-  (def player (ents/receive-event player (events/map->Event {:nomen :add-item :target (ents/map->Entity {:nomen "Garbanzo bean"})})))
+        (comps/Equipment)]})))
+  (def pizza-event (events/map->Event {:nomen :add-item :target items/pizza}))
+  (def temp (ents/receive-event player pizza-event))
+  (def player (first temp))
+  (def exhausted-event (second temp))
+  (is (nil? (:target exhausted-event)))
   (def nomen-is-inventory (partial help/nomen-is :inventory))
   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
   (is (= (count inventory) 1))
-  (is (= (:nomen (first inventory)) "Garbanzo bean"))
-  (def player (ents/add-item player items/sword))
-  (is (= (count inventory) 1))
-  (def nomen-is-hand (partial help/nomen-is :hand))
-  (def right-hand (:contents (first (filter nomen-is-hand (:components player)))))
-  (is (= (count right-hand) 1))
-  (is (= (:nomen (first right-hand)) "Sword"))
+  (is (= (:nomen (first inventory)) "Pizza"))
+  (def player (first (ents/receive-event player pizza-event)))
+  (def player (first (ents/receive-event player pizza-event)))
+  (def player (first (ents/receive-event player pizza-event)))
+  (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
+  (is (= (count inventory) 4))
+  (def player (first (ents/receive-event player (events/map->Event {:nomen :add-item :target items/sword}))))
+  (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
+  (is (= (count inventory) 4))
+  (def nomen-is-equipment (partial help/nomen-is :equipment))
+  (def equipment (first (filter nomen-is-equipment (:components player))))
+  (is (= (count (:contents equipment)) 1))
+  (is (= (:nomen (first (:contents equipment))) "Sword"))
+  (def sword-equipped-in (:equipped-in (first (filter :equipped-in (:components (first (:contents equipment)))))))
+  (is (= (count sword-equipped-in) 1))
+  (is (= (first sword-equipped-in) :right-hand))
   )
-
-; (deftest equipping
-;   "Test equipping and equipment."
-;   (def player (ents/sort-components
-;     (ents/map->Entity {
-;       :id 1
-;       :nomen "Player"
-;       :components [
-;         (comps/Armour {:strength 2})
-;         (comps/Physics {:max-hp 20 :hp 20})
-;         (comps/CanAttack)
-;         (comps/Inventory)]})))
-;   (is (empty? (ents/where-to-equip player)))
-;   (is (= (count (ents/where-to-equip items/sword)) 1))
-;   (is (= (first (ents/where-to-equip items/sword)) :hand))
-;   )
-  

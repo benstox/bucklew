@@ -120,12 +120,48 @@
       [new-this new-event])
     [this event])) ; no slot so no change
 
+(defn normal-set-location [this event component-i]
+  (if-let [{:keys [new-x new-y] :as new-coords} (:target event)]
+    (let [location (get-in this [:components component-i])
+          new-event (assoc event :target nil)
+          new-location (assoc location :x new-x :y new-y)
+          new-this (assoc-in this [:components component-i] new-location)]
+      [new-this new-event])
+    [this event])) ; no location to update to
+
+; ; from caves of clojure
+; (defn move-player [world dir]
+;   (let [player (get-in world [:entities :player])
+;         target (coords/destination-coords (:location player) dir)
+;         entity-at-target (world-core/get-entity-at world target)]
+;     (cond
+;       ; entity-at-target (attack player entity-at-target world)
+;       ; (can-move? player target world) (move player target world)
+;       ; (can-dig? player target world) (dig player target world)
+;       :else world)))
+
 ;; COMPONENTS
 
-(defrecord LocationComponent [nomen priority x y])
-(defn Location [& args] (map->LocationComponent (into args {:nomen :location, :priority 1})))
+(defrecord DisplayComponent [nomen priority glyph fg-colour bg-colour])
+(defn Display [& args] (map->DisplayComponent (into args {:nomen :display
+                                                          :priority 2
+                                                          :fg-colour "ffffff"
+                                                          :bg-colour "000000"})))
 
-(defrecord PhysicsComponent [nomen priority max-hp hp strength type take-damage make-attack])
+(defrecord LocationComponent [nomen priority x y set-location]
+  Object
+  (toString [this]
+    "Override str method."
+    (str "Location: (" x ", " y ")")))
+(defn Location [& args] (map->LocationComponent (into args {:nomen :location
+                                                            :priority 1
+                                                            :set-location normal-set-location})))
+
+(defrecord PhysicsComponent [nomen priority max-hp hp strength type take-damage make-attack]
+  Object
+  (toString [this]
+    "Override str method."
+    (str "Strength: " strength "; HP: " hp "/" max-hp)))
 (defn Physics [& args] (map->PhysicsComponent (into args {:nomen :physics
                                                           :priority 100
                                                           :max-hp 10
@@ -180,7 +216,7 @@
   (toString [this]
     "Override str method."
     (let [item-equip-info-temp (map #(ents/receive-event % (events/map->Event {:nomen :get-equip-info})) contents)
-          items (map (comp :nomen first) item-equip-info-temp)
+          items (map first item-equip-info-temp)
           places-equipped (map (comp :equipped-in :target second) item-equip-info-temp)
           item-locations (into {} (map #(into {} (for [place %1] {place %2})) places-equipped items))]
       (str "Equipment\n" (apply str
@@ -205,3 +241,6 @@
                                                                       :slots-required 1
                                                                       :equipped-in []
                                                                       :get-equip-info normal-get-equip-info})))
+
+(defrecord IsPlayerComponent [nomen priority])
+(defn IsPlayer [& args] (map->IsPlayerComponent (into args {:nomen :is-player :priority 1})))

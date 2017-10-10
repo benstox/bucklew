@@ -10,7 +10,9 @@
   (get-indexed-components-by-nomen [this nomen])
   (add-item [this item])
   (where-to-equip [this])
-  (receive-event [this event]))
+  (receive-event [this event])
+  (tick [this world]
+        "Update the world to handle the passing of a tick for this entity."))
 
 (defrecord Entity [id nomen desc components]
   EntityProtocol
@@ -57,12 +59,6 @@
   Object
   (toString [this]
     "Override str method."
-    (let [nomen (:nomen this)
-          desc (:desc this)
-          physics (help/find-physics-component (:components this))
-          hp (:hp physics)
-          max-hp (:max-hp physics)
-          components (:components this)]
-      (str
-        nomen "." (when desc (str " " desc)) (when physics (str " " hp "/" max-hp " HP.")) "\n"
-        (apply str (for [component components] (str component "\n")))))))
+    (str
+      nomen "." (when desc (str " " desc)) "\n"
+      (apply str (for [component components] (str component "\n"))))))

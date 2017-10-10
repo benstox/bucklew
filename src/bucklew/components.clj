@@ -179,14 +179,15 @@
   Object
   (toString [this]
     "Override str method."
+    (let [item-equip-info-temp (map #(ents/receive-event % (events/map->Event {:nomen :get-equip-info})) contents)
+          items (map (comp :nomen first) item-equip-info-temp)
+          places-equipped (map (comp :equipped-in :target second) item-equip-info-temp)
+          item-locations (into {} (map #(into {} (for [place %1] {place %2})) places-equipped items))]
       (str "Equipment\n" (apply str
-        (for [slot slots
-              item contents]
-          (let [equipped-component (:target (second (ents/receive-event item (events/map->Event {:nomen :get-equip-info}))))
-                equipped-in (:equipped-in equipped-component)]
-            (if (some #{(:nomen slot)} equipped-in)
-              (str "* " (:desc slot) " -- " (:nomen item) "\n")
-              (str "* " (:desc slot) " -- [empty]\n"))))))))
+        (for [slot slots]
+          (if (contains? item-locations (:nomen slot))
+            (str "* " (:desc slot) " -- " ((:nomen slot) item-locations) "\n")
+            (str "* " (:desc slot) " -- [empty]\n"))))))))
 (defn Equipment [& args] (map->EquipmentComponent (into args {:nomen :equipment
                                                               :priority 25
                                                               :contents []

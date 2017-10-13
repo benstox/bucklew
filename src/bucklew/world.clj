@@ -18,7 +18,7 @@
 
 ; Debugging -------------------------------------------------------------------
 (defn print-row [row]
-  (println (apply str (map :glyph row))))
+  (println (clojure.string/join (map :glyph row))))
 
 (defn print-world [world]
   (dorun (map print-row (:tiles world))))

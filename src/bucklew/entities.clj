@@ -1,46 +1,50 @@
 (ns bucklew.entities
-  (:require [bucklew.helpers :as help]))
+  (:require [bucklew.events :as events]
+            [bucklew.helpers :as help]))
 
 (defprotocol EntityProtocol
-  (add-component [this component])
-  (sort-components [this])
-  (clear-components [this])
-  (remove-components-by-nomen [this nomen])
-  (get-components-by-nomen [this nomen])
-  (get-indexed-components-by-nomen [this nomen])
-  (add-item [this item])
-  (where-to-equip [this])
-  (receive-event [this event])
-  (tick [this world]
-        "Update the world to handle the passing of a tick for this entity."))
+  (add-component [this component]
+    "Add a component to the entities component list and re-sort.")
+  (sort-components [this]
+    "Resorts components by priority.")
+  (clear-components [this]
+    "Clear all components.")
+  (remove-components-by-nomen [this nomen]
+    "Remove all components with a certain name.")
+  (get-components-by-nomen [this nomen]
+    "Return a sequence of components that share the given name.")
+  (get-indexed-components-by-nomen [this nomen]
+    "Return a sequence of components that share the given name.")
+  (receive-event [this event]
+    "Handle the reception of an event by this. Return the possibly modified this and event.
+    Tends to involve passing the event through all the entities or components of this.
+    
+    For world (for now...):
+    * located-entities: `([entity event-containing-location-data], ...)`
+    * indexed-entities: `([entity-i [entity event-containing-location-data]], ...)`")
+  (tick [this world entity-i]
+    "Update the world to handle the passing of a tick for this entity."))
 
 (defrecord Entity [id nomen desc components]
   EntityProtocol
   (add-component [this component]
-    "Add a component to the entities component list and re-sort."
     (let [new-components (cons component components)
-          prioritised (into [] (sort-by :priority new-components))]
+          prioritised (vec (sort-by :priority new-components))]
     (assoc this :components prioritised)))
   (sort-components [this]
-    "Resorts components by priority."
-    (assoc this :components (into [] (sort-by :priority (:components this)))))
+    (assoc this :components (vec (sort-by :priority (:components this)))))
   (clear-components [this]
-    "Clear all components."
     (assoc this :components []))
   (remove-components-by-nomen [this nomen]
-    "Remove all components with a certain name."
     (let [nomen-is-nomen (partial help/nomen-is nomen)]
-      (assoc this :components (into [] (remove nomen-is-nomen (:components this))))))
+      (assoc this :components (vec (remove nomen-is-nomen (:components this))))))
   (get-components-by-nomen [this nomen]
-    "Return a sequence of components that share the given name."
     (let [nomen-is-nomen (partial help/nomen-is nomen)]
       (filter nomen-is-nomen (:components this))))
   (get-indexed-components-by-nomen [this nomen]
-    "Return a sequence of components that share the given name."
     (let [nomen-is-nomen (partial help/nomen-is nomen)]
       (filter (comp nomen-is-nomen first) (map vector (:components this) (range)))))
   (receive-event [this event]
-    "Handle the reception of an event by the entity. Return the entity and the event."
     (let [nomen (:nomen event)
           indexed-components (map vector components (range))
           relevant-components (filter (comp nomen first) indexed-components)]
@@ -56,9 +60,12 @@
               [new-this new-event]  ; return a (possibly) changed entity and event
               (recur new-this new-event lower-priority-components))))
         [this event])))             ; no change to either the entity or the event
+  (tick [this world entity-i]
+    (let [[new-this new-event] (receive-event this events/tick)
+          new-world (assoc-in world [:entities entity-i] new-this)]
+      new-world))
   Object
   (toString [this]
-    "Override str method."
     (str
       nomen "." (when desc (str " " desc)) "\n"
-      (apply str (for [component components] (str component "\n"))))))
+      (clojure.string/join (for [component components] (str component "\n"))))))

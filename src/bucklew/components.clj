@@ -1,5 +1,6 @@
 (ns bucklew.components
-  (:require [bucklew.helpers :as help]
+  (:require [bucklew.coords :as coords]
+            [bucklew.helpers :as help]
             [bucklew.events :as events]
             [bucklew.entities :as ents]))
 
@@ -9,33 +10,49 @@
 ;;  and the index of the current component
 ;; * always return a (possibly) modified [this event] value
 
-(defn normal-take-damage [this event component-i]
-  "The normal way an event causes this' hp to take damage."
-  (let [damage-amount (:amount event)
-        component (get-in this [:components component-i])
-        old-hp (:hp component)
-        new-hp (- old-hp damage-amount)]
-      [(assoc-in this [:components component-i :hp] new-hp) event]))
+(defn -get
+  "Given 'this' and 'component-i' get the current component."
+  [this component-i]
+  (get-in this [:components component-i]))
 
-(defn normal-make-attack [this event component-i]
+(defn -set
+  "Given 'this' and 'component-i' set the current component to one with new values in it."
+  [this component-i new-component]
+  (assoc-in this [:components component-i] new-component))
+
+(defn normal-take-damage
+  "The normal way an event causes this' hp to take damage."
+  [this event component-i]
+  (let [damage-amount (:amount event)
+        physics (-get this component-i)
+        old-hp (:hp physics)
+        new-hp (- old-hp damage-amount)
+        new-physics (assoc physics :hp new-hp)
+        new-this (-set this component-i new-physics)]
+      [new-this event]))
+
+(defn normal-make-attack
   "The normal way an event causes this to make an attack."
+  [this event component-i]
   (let [take-damage-data {:nomen :take-damage, :amount (:amount event), :type (:type event)}
         take-damage-event (events/map->Event take-damage-data)
         target (:target event)]
     [this (assoc event :target (ents/receive-event target take-damage-event))]))
 
-(defn normal-reduce-amount [this event component-i]
+(defn normal-reduce-amount
   "Component strength will reduce the amount that an event carries with it."
-  (let [component (get-in this [:components component-i])
+  [this event component-i]
+  (let [component (-get this component-i)
         amount (:amount event)
         strength (:strength component)
         reduced-amount (max (- amount strength) 0)
         new-event (assoc event :amount reduced-amount)]
     [this new-event]))
 
-(defn normal-boost-amount [this event component-i]
+(defn normal-boost-amount
   "Component strength will boost the amount that an event carries with it."
-  (let [component (get-in this [:components component-i])
+  [this event component-i]
+  (let [component (-get this component-i)
         amount (:amount event)
         strength (:strength component)
         boosted-amount (max (+ amount strength) 0)
@@ -49,10 +66,11 @@
    {:nomen :head :type :head :desc "Head" :priority 35}
    {:nomen :back :type :back :desc "Back" :priority 35}])
 
-(defn inventory-add-item [this event component-i]
+(defn inventory-add-item
   "Try to add an item to an inventory."
+  [this event component-i]
   (if-let [item (:target event)]
-    (let [inventory (get-in this [:components component-i])
+    (let [inventory (-get this component-i)
           contents (:contents inventory)
           num-items (count contents)
           capacity (:capacity inventory)]
@@ -60,20 +78,21 @@
         (let [new-event (assoc event :target nil)
               new-item (ents/remove-components-by-nomen item :location)
               new-inventory (conj contents new-item)
-              new-this (assoc-in this [:components component-i :contents] new-inventory)]
+              new-this (-set this component-i new-inventory)]
           [new-this new-event]) ; there's a free space so add the item, and send the event away empty
         [this event])) ; inventory full so no change
     [this event])) ; no item so no change
   
-(defn equipment-add-item [this event component-i]
+(defn equipment-add-item
   "Try to equip an item."
+  [this event component-i]
   (if-let [item (:target event)]
     (let [get-equip-info-event (events/map->Event {:nomen :get-equip-info})
           [item finished-equip-info-event] (ents/receive-event item get-equip-info-event)
           equip-info (:target finished-equip-info-event)]
       (if equip-info
         (let [{:keys [slot-types slots-required can-be-equipped-i]} equip-info
-              equipment (get-in this [:components component-i])
+              equipment (-get this component-i)
               right-type-slots (filter #(contains? slot-types (:type %)) (:slots equipment))
               items-already-equipped (:contents equipment)
               filled-slots (reduce #(into %1 (:equipped-in %2)) #{} (flatten (map :components items-already-equipped)))
@@ -82,31 +101,36 @@
           (if (<= slots-required num-possible-slots)
             (let [new-event (assoc event :target nil)
                   slots-to-use (take slots-required possible-slots)
-                  nomen-slots-to-use (into [] (map :nomen slots-to-use))
+                  nomen-slots-to-use (vec (map :nomen slots-to-use))
                   new-item (assoc-in item [:components can-be-equipped-i :equipped-in] nomen-slots-to-use)
                   new-item-minus-loc (ents/remove-components-by-nomen new-item :location)
                   new-equipment (conj items-already-equipped new-item-minus-loc)
-                  new-this (assoc-in this [:components component-i :contents] new-equipment)]
+                  new-this (-set this component-i new-equipment)]
               [new-this new-event]) ; there is an appropriate slot so equip the item!
             [this event])) ; equipment full so no change
         [this event])) ; item cannot be equipped so no change
     [this event])) ; no item so no change
 
-(defn normal-get-equip-info [this event component-i]
+(defn normal-get-equip-info
   "Gets called by a CanBeEquipped component and send back relevant info and index for equipping
   this item."
+  [this event component-i]
   (if (nil? (:target event))
     (let [can-be-equipped-i component-i
-          can-be-equipped (get-in this [:components component-i])
-          {:keys [slot-types slots-required equipped-in] :as info} can-be-equipped
-          new-event (events/map->Event {:nomen :get-equip-info
-                                        :target (assoc info :can-be-equipped-i can-be-equipped-i)})]
+          can-be-equipped (-get this component-i)
+          {:keys [slot-types slots-required equipped-in]} can-be-equipped
+          info {:slot-types slot-types
+                :slots-required slots-required
+                :equipped-in equipped-in
+                :can-be-equipped-i can-be-equipped-i}
+          new-event (assoc event :target info)]
       [this new-event]) ; returns data under the new-event :target key
     [this event])) ; only returns info if target is nil
 
-(defn unequip [this event component-i]
+(defn unequip
+  [this event component-i]
   (if-let [slot (:target event)]
-    (let [equipment (get-in this [:components component-i])
+    (let [equipment (-get this component-i)
           equipped-items (:contents equipment)
           get-equip-info-event (events/map->Event {:nomen :get-equip-info})
           items-equip-info (map vector (map #(:target (second (ents/receive-event % get-equip-info-event))) equipped-items) (range))
@@ -115,29 +139,73 @@
           new-item-unequipped (assoc-in new-item [:components (:can-be-equipped-i item-in-slot) :equipped-in] [])
           new-equipped-items (help/vec-remove equipped-items item-in-slot-i)
           new-equipment (assoc equipment :contents new-equipped-items)
-          new-this (assoc-in this [:components component-i] new-equipment)
+          new-this (-set this component-i new-equipment)
           new-event (events/map->Event {:nomen :add-item :target new-item})]
       [new-this new-event])
     [this event])) ; no slot so no change
 
-(defn normal-set-location [this event component-i]
+(defn normal-set-location
+  "Replace the location coordinates with some new ones."
+  [this event component-i]
   (if-let [{:keys [new-x new-y] :as new-coords} (:target event)]
     (let [location (get-in this [:components component-i])
           new-event (assoc event :target nil)
           new-location (assoc location :x new-x :y new-y)
-          new-this (assoc-in this [:components component-i] new-location)]
+          new-this (-set this component-i new-location)]
       [new-this new-event])
     [this event])) ; no location to update to
 
-; ; from caves of clojure
+(defn normal-get-location
+  "Gets called by a Location component and send back relevant info and index for this.."
+  [this event component-i]
+  (if (nil? (:target event))
+    (let [location-i component-i
+          location (-get this component-i)
+          {:keys [x y]} location
+          info {:x x :y y :location-i location-i}
+          new-event (assoc event :target info)]
+      [this new-event]) ; returns data under the new-event :target key
+    [this event])) ; only returns info if target is nil
+
+(defn normal-move
+  "Move the entity by an amount in each direction (dx, dy)."
+  [this event component-i]
+  (if-let [direction (:target event)]
+    (let [{dx :x dy :y} (direction coords/directions)
+          {:keys [x y] :as location} (-get this component-i)
+          new-event (assoc event :target nil)
+          [new-x new-y] (map + [dx dy] [x y])
+          new-location (assoc location :x new-x :y new-y)
+          new-this (-set this component-i new-location)]
+      [new-this new-event])
+    [this event]))
+
+(defn normal-debug
+  "Just prints something."
+  [this event component-i]
+  (do
+    (println "DEBUG!!")
+    [this event]))
+
+(defn normal-tick
+  "A normal AI??"
+  [this event component-i]
+  [this event])
+
+(defn players-tick
+  "The player's turn."
+  [this event component-i]
+  [this event])
+
+; from caves of clojure
 ; (defn move-player [world dir]
 ;   (let [player (get-in world [:entities :player])
 ;         target (coords/destination-coords (:location player) dir)
 ;         entity-at-target (world-core/get-entity-at world target)]
 ;     (cond
-;       ; entity-at-target (attack player entity-at-target world)
-;       ; (can-move? player target world) (move player target world)
-;       ; (can-dig? player target world) (dig player target world)
+;       entity-at-target (attack player entity-at-target world)
+;       (can-move? player target world) (move player target world)
+;       (can-dig? player target world) (dig player target world)
 ;       :else world)))
 
 ;; COMPONENTS
@@ -148,19 +216,19 @@
                                                           :fg-colour "ffffff"
                                                           :bg-colour "000000"})))
 
-(defrecord LocationComponent [nomen priority x y set-location]
+(defrecord LocationComponent [nomen priority x y set-location get-location move]
   Object
   (toString [this]
-    "Override str method."
     (str "Location: (" x ", " y ")")))
 (defn Location [& args] (map->LocationComponent (into args {:nomen :location
                                                             :priority 1
-                                                            :set-location normal-set-location})))
+                                                            :set-location normal-set-location
+                                                            :get-location normal-get-location
+                                                            :move normal-move})))
 
 (defrecord PhysicsComponent [nomen priority max-hp hp strength type take-damage make-attack]
   Object
   (toString [this]
-    "Override str method."
     (str "Strength: " strength "; HP: " hp "/" max-hp)))
 (defn Physics [& args] (map->PhysicsComponent (into args {:nomen :physics
                                                           :priority 100
@@ -193,10 +261,9 @@
 (defrecord InventoryComponent [nomen priority contents capacity add-item]
   Object
   (toString [this]
-    "Override str method."
     (let [num-items (count contents)]
       (str "Inventory (" num-items "/" capacity ")\n"
-        (apply str
+        (clojure.string/join
           (for [item contents]
             (str "* " item "\n")))))))
 (defn Inventory [& args] (map->InventoryComponent (into args {:nomen :inventory
@@ -214,16 +281,17 @@
 (defrecord EquipmentComponent [nomen priority contents slots add-item remove-item]
   Object
   (toString [this]
-    "Override str method."
     (let [item-equip-info-temp (map #(ents/receive-event % (events/map->Event {:nomen :get-equip-info})) contents)
           items (map first item-equip-info-temp)
           places-equipped (map (comp :equipped-in :target second) item-equip-info-temp)
           item-locations (into {} (map #(into {} (for [place %1] {place %2})) places-equipped items))]
-      (str "Equipment\n" (apply str
-        (for [slot slots]
-          (if (contains? item-locations (:nomen slot))
-            (str "* " (:desc slot) " -- " ((:nomen slot) item-locations) "\n")
-            (str "* " (:desc slot) " -- [empty]\n"))))))))
+      (str
+        "Equipment\n"
+        (clojure.string/join
+          (for [slot slots]
+            (if (contains? item-locations (:nomen slot))
+              (str "* " (:desc slot) " -- " ((:nomen slot) item-locations) "\n")
+              (str "* " (:desc slot) " -- [empty]\n"))))))))
 (defn Equipment [& args] (map->EquipmentComponent (into args {:nomen :equipment
                                                               :priority 25
                                                               :contents []
@@ -242,5 +310,11 @@
                                                                       :equipped-in []
                                                                       :get-equip-info normal-get-equip-info})))
 
-(defrecord IsPlayerComponent [nomen priority])
-(defn IsPlayer [& args] (map->IsPlayerComponent (into args {:nomen :is-player :priority 1})))
+(defrecord TakesTurnComponent [nomen priority])
+(defn TakesTurn [& args] (map->TakesTurnComponent (into args {:nomen :takes-turn, :priority 5, :tick normal-tick})))
+
+(defrecord DebugComponent [nomen priority debug])
+(defn Debug [& args] (map->DebugComponent (into args {:nomen :debug, :priority 30, :debug normal-debug})))
+
+(defrecord TeamComponent [nomen priority team])
+(defn Team [& args] (map->TeamComponent (into args {:nomen :team})))

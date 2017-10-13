@@ -10,8 +10,9 @@
   (let [indexed (map vector coll (range))]
     (first (filter (comp f first) indexed))))
 
-(defn nomen-is [nomen coll]
+(defn nomen-is
   "Check whether the name of this object is a certain name."
+  [nomen coll]
   (= (:nomen coll) nomen))
 
 (defn find-physics-component [components]

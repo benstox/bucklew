@@ -11,3 +11,7 @@
 (def make-attack-event (map->Event
   {:nomen :make-attack,
    :amount 0}))
+
+(def get-location (map->Event {:nomen :get-location}))
+
+(def tick (map->Event {:nomen :tick}))

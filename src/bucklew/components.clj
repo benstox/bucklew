@@ -197,6 +197,33 @@
   [this event component-i]
   [this event])
 
+(defn give-draw-event-location
+  "Add location from the Location component to the draw event that happens to be passing by."
+  [this event component-i]
+  (let [{:keys [x y]} (-get this component-i)
+        display-info (:target event)
+        new-display-info (assoc display-info :x x, :y y)
+        new-event (assoc event :target new-display-info)]
+    [this new-event]))
+
+(defn normal-draw
+  "Adds colours and glyph from the Display component to the draw event that happens to be passing by."
+  [this event component-i]
+  (let [{:keys [glyph fg-colour bg-colour]} (-get this component-i)
+        display-info (:target event)
+        new-display-info (assoc display-info :glyph glyph, :fg-colour fg-colour, :bg-colour bg-colour)
+        new-event (assoc event :target new-display-info)]
+    [this new-event]))
+
+; (defn draw-entity [screen origin vrows vcols entity]
+;   (let [
+;         {:keys [x y]} (get-viewport-coords-of origin location)
+;         max-x (dec vcols)
+;         max-y (dec vrows)]
+;     (when (and (<= 0 x max-x)
+;                (<= 0 y max-y))
+;       (s/put-string screen x y glyph {:fg color}))))
+
 ; from caves of clojure
 ; (defn move-player [world dir]
 ;   (let [player (get-in world [:entities :player])
@@ -210,11 +237,12 @@
 
 ;; COMPONENTS
 
-(defrecord DisplayComponent [nomen priority glyph fg-colour bg-colour])
+(defrecord DisplayComponent [nomen priority glyph fg-colour bg-colour draw])
 (defn Display [& args] (map->DisplayComponent (into args {:nomen :display
                                                           :priority 2
                                                           :fg-colour "ffffff"
-                                                          :bg-colour "000000"})))
+                                                          :bg-colour "000000"
+                                                          :draw normal-draw})))
 
 (defrecord LocationComponent [nomen priority x y set-location get-location move]
   Object
@@ -224,7 +252,8 @@
                                                             :priority 1
                                                             :set-location normal-set-location
                                                             :get-location normal-get-location
-                                                            :move normal-move})))
+                                                            :move normal-move
+                                                            :draw give-draw-event-location})))
 
 (defrecord PhysicsComponent [nomen priority max-hp hp strength type take-damage make-attack]
   Object

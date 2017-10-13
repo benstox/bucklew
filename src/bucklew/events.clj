@@ -15,3 +15,5 @@
 (def get-location (map->Event {:nomen :get-location}))
 
 (def tick (map->Event {:nomen :tick}))
+
+(def draw (map->Event {:nomen :draw :target {}}))

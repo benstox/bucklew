@@ -63,12 +63,13 @@
 
 
 ; Convenience functions -------------------------------------------------------
-(defn get-tile-from-tiles [tiles [x y]]
-  (get-in tiles [y x] (:bound tiles)))
+(defn get-tile-from-tiles [tiles coord]
+  (let [{:keys [x y]} coord]
+    (get-in tiles [y x] (:bound tiles))))
 
 (defn random-coordinate []
   (let [[cols rows] world-size]
-    [(rand-int cols) (rand-int rows)]))
+    {:x (rand-int cols), :y (rand-int rows)}))
 
 (defn tile-walkable?
   "Return whether a (normal) entity can walk over this type of tile."
@@ -83,30 +84,23 @@
 (defn get-tile-kind [world coord]
   (:kind (get-tile world coord)))
 
-(defn set-tile [world [x y] tile]
-  (assoc-in world [:tiles y x] tile))
+(defn set-tile [world coord tile]
+  (let [{:keys [x y]} coord]
+    (assoc-in world [:tiles y x] tile)))
 
 (defn set-tile-floor [world coord]
   (set-tile world coord (:floor tiles)))
 
-
-(defn get-entities-at [world coord]
-  (filter #(= coord (:location %))
-          (vals (:entities world))))
-
-(defn get-entity-at [world coord]
-  (first (get-entities-at world coord)))
-
-(defn get-entities-around
-  ([world coord] (get-entities-around world coord 1))
-  ([world coord radius]
-     (filter #(<= (radial-distance coord (:location %))
-                  radius)
-             (vals (:entities world)))))
+; (defn get-entities-around
+;   ([world coord] (get-entities-around world coord 1))
+;   ([world coord radius]
+;      (filter #(<= (radial-distance coord (:location %))
+;                   radius)
+;              (vals (:entities world)))))
 
 (defn is-empty? [world coord]
   (and (tile-walkable? (get-tile world coord))
-       (not (get-entity-at world coord))))
+       (empty? (get-entities-by-location world coord))))
 
 (defn find-empty-tile [world]
   (loop [coord (random-coordinate)]

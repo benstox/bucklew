@@ -1,5 +1,7 @@
 (ns bucklew.ui.drawing
   (:require [lanterna.screen :as s]
+            [bucklew.entities :as ents]
+            [bucklew.events :as events]
             [bucklew.helpers :as help]))
 
 
@@ -71,12 +73,14 @@
 
         start-x (- end-x vcols)
         start-y (- end-y vrows)]
-    [start-x start-y]))
+    {:x start-x :y start-y}))
 
 (defn get-viewport-coords-of
   "Get the viewport coordiates for the given real coords, given the viewport origin."
   [origin coords]
-  (map - coords origin))
+  (let [{x0 :x y0 :y} origin
+        {x1 :x y1 :y} coords]
+    {:x (- x1 x0) :y (- y1 y0)}))
 
 
 (defn draw-hud [screen game]
@@ -89,19 +93,19 @@
     (s/put-string screen 0 hud-row info)))
 
 
-(defn draw-entity [screen origin vrows vcols {:keys [location glyph color]}]
-  (let [[x y] (get-viewport-coords-of origin location)
-        max-x (dec vcols)
+(defn draw-entity [screen vrows vcols x y glyph fg-colour]
+  (let [max-x (dec vcols)
         max-y (dec vrows)]
     (when (and (<= 0 x max-x)
                (<= 0 y max-y))
-      (s/put-string screen x y glyph {:fg color}))))
+      (s/put-string screen x y glyph fg-colour))))
 
 
-(defn draw-world [screen vrows vcols [ox oy] tiles]
+(defn draw-world [screen vrows vcols o-coord tiles]
   (letfn [(render-tile [tile]
             [(:glyph tile) {:fg (:color tile)}])]
-    (let [tiles (help/shear tiles ox oy vcols vrows)
+    (let [{ox :x oy :y} o-coord
+          tiles (help/shear tiles ox oy vcols vrows)
           sheet (help/map2d render-tile tiles)]
       (s/put-sheet screen 0 0 sheet))))
 
@@ -137,15 +141,20 @@
         [cols rows] (s/get-size screen)
         vcols cols
         vrows (dec rows)
-        origin (get-viewport-coords game (:location player) vcols vrows)]
+        origin {:x 0 :y 0}]
     (draw-world screen vrows vcols origin tiles)
     (when (get-in game [:debug-flags :show-regions])
       (draw-regions screen regions vrows vcols origin))
-    (doseq [entity (vals entities)]
-      (draw-entity screen origin vrows vcols entity))
+    (doseq [entity entities]
+      (let [[entity event] (ents/receive-event entity events/draw)
+            display-info (:target event)
+            {:keys [x y fg-colour bg-colour glyph]} display-info]
+        (when (not-any? nil? '(x y fg-colour bg-colour glyph))
+          (draw-entity screen vrows vcols x y glyph fg-colour))))
     (draw-hud screen game)
     (draw-messages screen (:messages player))
-    (highlight-player screen origin player)))
+    ; (highlight-player screen origin player)
+    ))
 
 
 ; Entire Game -----------------------------------------------------------------

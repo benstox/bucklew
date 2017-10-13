@@ -16,9 +16,11 @@
       3333333
   
   "
-  [[x1 y1] [x2 y2]]
-  (max (help/abs (- x1 x2))
-       (help/abs (- y1 y2))))
+  [coord1 coord2]
+  (let [{x1 :x y1 :y} coord1
+        {x2 :x y2 :y} coord2]
+    (max (help/abs (- x1 x2))
+         (help/abs (- y1 y2)))))
 
 
 (def directions
@@ -33,8 +35,10 @@
 
 (defn offset-coords
   "Offset the starting coordinate by the given amount, returning the result coordinate."
-  [[x y] [dx dy]]
-  [(+ x dx) (+ y dy)])
+  [coord delta-coord]
+  (let [{x  :x y  :y} coord
+        {dx :x dy :y} delta-coord]
+    {:x (+ x dx), :y (+ y dy)}))
 
 (defn dir-to-offset
   "Convert a direction to the offset for moving 1 in that direction."

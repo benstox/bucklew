@@ -12,10 +12,11 @@
   (let [[cols rows] world-size]
     (for [x (range cols)
           y (range rows)]
-      [x y])))
+      {:x x :y y})))
 
-(defn get-tile-from-level [level [x y]]
-  (get-in level [y x] (:bound tiles)))
+(defn get-tile-from-level [level coord]
+  (let [{:keys [x y]} coord]
+    (get-in level [y x] (:bound tiles))))
 
 
 ; Region Mapping --------------------------------------------------------------
@@ -106,7 +107,7 @@
 (defn block-coords [x y]
   (for [dx [-1 0 1]
         dy [-1 0 1]]
-    [(+ x dx) (+ y dy)]))
+    {:x (+ x dx) :y (+ y dy)}))
 
 (defn get-block [tiles x y]
   (map (partial get-tile-from-tiles tiles)
@@ -137,23 +138,23 @@
        n))
 
 (defn populate-world [world]
-  (let [world (assoc-in world [:entities :player]
-                        (make-player (find-empty-tile world)))]
-    (-> world
-      (add-creatures make-lichen 30)
-      (add-creatures make-bunny 20)
-      (add-creatures make-silverfish 4))))
-    world)
+  (let [world (assoc world :entities [(creats/make-player (find-empty-tile world))])]
+    ; (-> world
+    ;   (add-creatures make-lichen 30)
+    ;   (add-creatures make-bunny 20)
+    ;   (add-creatures make-silverfish 4))))
+    world))
 
 
 ; Actual World Creation -------------------------------------------------------
 (defn random-world []
   (let [world (->World (empty-room-tiles) [])
         world (nth (iterate smooth-world world) 3)
-        ; world (populate-world world)
+        world (populate-world world)
         world (assoc world :regions (get-region-map (:tiles world)))]
     world))
 
 (defn empty-room-world []
-  (let [world (->World (empty-room-tiles) [creats/player])]
+  (let [world (->World (empty-room-tiles) [])
+        world (populate-world world)]
     world))

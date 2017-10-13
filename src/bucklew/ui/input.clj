@@ -1,5 +1,5 @@
 (ns bucklew.ui.input
-  (:use [bucklew.world.generation :only [random-world]]
+  (:use [bucklew.world.generation :only [empty-room-world random-world]]
         [bucklew.ui.core :only [->UI]])
   (:require [bucklew.entities :as ents]
             [bucklew.events :as events]
@@ -8,7 +8,7 @@
 
 
 (defn reset-game [game]
-  (let [fresh-world (random-world)]
+  (let [fresh-world (empty-room-world)]
     (-> game
       (assoc :world fresh-world)
       (assoc :uis [(->UI :play)]))))

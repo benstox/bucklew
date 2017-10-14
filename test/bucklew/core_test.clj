@@ -7,14 +7,14 @@
       [bucklew.helpers :as help]))
 
 (deftest basic-test
-  "Test some basics surrounding entities, components and events."
+  ; Test some basics surrounding entities, components and events.
   ; create the character
   (def player (ents/map->Entity
     {:id 1
      :nomen "Player"
      :components [(comps/Physics {:hp 20 :max-hp 20})]}))
   (def physics (help/find-physics-component (:components player)))
-  (is (= (str player) "Player. 20/20 HP."))
+  (is (= (str player) "Player.\nStrength: 5; HP: 20/20\n"))
   (is (= (:id player) 1))
   (is (= (:nomen player) "Player"))
   (is (= (count (:components player)) 1))
@@ -22,7 +22,7 @@
   (is (= (:hp physics) 20))
   (is (= (:priority physics) 100))
   (def player (assoc player :desc "You, the player character."))
-  (is (= (str player) "Player. You, the player character. 20/20 HP."))
+  (is (= (str player) "Player. You, the player character.\nStrength: 5; HP: 20/20\n"))
 
   ; attack for 5
   (let [[attacked-player event] (ents/receive-event player events/take-damage-event)]
@@ -86,7 +86,7 @@
                                   
                     ; remove all components
                     (def empty-player (ents/clear-components player))
-                    (is (= (str empty-player) "Player. You, the player character."))
+                    (is (= (str empty-player) "Player. You, the player character.\n"))
                                   
                     ; attack for 5
                     (let [[empty-attacked-player event] (ents/receive-event empty-player events/take-damage-event)]
@@ -95,7 +95,7 @@
   )
 
 (deftest sort-components
-  "Test whether components sort properly by priority."
+  ; Test whether components sort properly by priority.
   (def player (ents/map->Entity
     {:id 1
      :nomen "Player"
@@ -108,7 +108,7 @@
   (is (= (:priority (first (:components player))) 50)))
 
 (deftest basic-attack
-  "Test basic attacking."
+  ; Test basic attacking.
   (def player (ents/sort-components
     (ents/map->Entity {
       :id 1
@@ -138,7 +138,7 @@
   )
 
 (deftest add-item
-  "Test add-item events"
+  ; Test add-item events
   (def player (ents/sort-components
     (ents/map->Entity {
       :id 1
@@ -152,7 +152,7 @@
   (def pizza-event (events/map->Event {:nomen :add-item :target items/pizza}))
   (def temp (ents/receive-event player pizza-event))
   (def player (first temp))
-  (def exhausted-event (second temp))
+  (def exhausted-event (last temp))
   (is (nil? (:target exhausted-event)))
   (def nomen-is-inventory (partial help/nomen-is :inventory))
   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
@@ -168,6 +168,7 @@
   (is (= (count inventory) 4))
   (def nomen-is-equipment (partial help/nomen-is :equipment))
   (def equipment (first (filter nomen-is-equipment (:components player))))
+  (println (str player))
   (is (= (count (:contents equipment)) 1))
   (is (= (:nomen (first (:contents equipment))) "Sword"))
   (def nomen-is-location (partial help/nomen-is :location))

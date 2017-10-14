@@ -77,7 +77,8 @@
       (if (< num-items capacity)
         (let [new-event (assoc event :target nil)
               new-item (ents/remove-components-by-nomen item :location)
-              new-inventory (conj contents new-item)
+              new-contents (conj contents new-item)
+              new-inventory (assoc inventory :contents new-contents)
               new-this (-set this component-i new-inventory)]
           [new-this new-event]) ; there's a free space so add the item, and send the event away empty
         [this event])) ; inventory full so no change
@@ -104,7 +105,8 @@
                   nomen-slots-to-use (vec (map :nomen slots-to-use))
                   new-item (assoc-in item [:components can-be-equipped-i :equipped-in] nomen-slots-to-use)
                   new-item-minus-loc (ents/remove-components-by-nomen new-item :location)
-                  new-equipment (conj items-already-equipped new-item-minus-loc)
+                  new-contents (conj items-already-equipped new-item-minus-loc)
+                  new-equipment (assoc equipment :contents new-contents)
                   new-this (-set this component-i new-equipment)]
               [new-this new-event]) ; there is an appropriate slot so equip the item!
             [this event])) ; equipment full so no change

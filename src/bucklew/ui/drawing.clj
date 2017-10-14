@@ -152,7 +152,7 @@
         (when (not-any? nil? '(x y fg-colour bg-colour glyph))
           (draw-entity screen vrows vcols x y glyph fg-colour))))
     (draw-hud screen game)
-    (draw-messages screen (:messages player))
+    ; (draw-messages screen (:messages player))
     ; (highlight-player screen origin player)
     ))
 

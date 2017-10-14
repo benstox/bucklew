@@ -8,7 +8,7 @@
    (comps/Inventory)
    (comps/Equipment)
    (comps/TakesTurn {:tick comps/players-tick})
-   (comps/Display {:glyph \@})
+   (comps/Display {:glyph "@"})
    (comps/Debug)])
 
 (defn make-player

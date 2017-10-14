@@ -6,7 +6,7 @@
 
 
 ; Constants -------------------------------------------------------------------
-(def world-size [120 50])
+(def world-size [99 29])
 
 ; Data structures -------------------------------------------------------------
 (defprotocol WorldProtocol

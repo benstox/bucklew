@@ -26,10 +26,6 @@
         indexed-entities (help/enumerate entities)]
     (reduce tick-entity world indexed-entities)))
 
-(defn clear-messages [game]
-  (assoc-in game [:world :entities :player :messages] nil))
-
-
 (defn run-game [game screen]
   (loop [{:keys [input uis] :as game} game]
     (when (seq uis)
@@ -40,7 +36,6 @@
                (-> game
                  (update-in [:world] tick-all)
                  (draw-game screen)
-                 (clear-messages)
                  (get-input screen)))))))
 
 (defn new-game []

@@ -172,15 +172,18 @@
 (defn normal-move
   "Move the entity by an amount in each direction (dx, dy)."
   [this event component-i]
-  (if-let [direction (:target event)]
-    (let [{dx :x dy :y} (direction coords/directions)
+  (if-let [move-info (:target event)]
+    (let [{:keys [tiles entities direction]} move-info
+          {dx :x dy :y} (direction coords/directions)
           {:keys [x y] :as location} (-get this component-i)
-          new-event (assoc event :target nil)
-          [new-x new-y] (map + [dx dy] [x y])
-          new-location (assoc location :x new-x :y new-y)
-          new-this (-set this component-i new-location)]
-      [new-this new-event])
-    [this event]))
+          [new-x new-y] (map + [dx dy] [x y])]
+      (if (not= (get-in tiles [new-y new-x :kind]) :wall)
+        (let [new-event (assoc event :target nil)
+              new-location (assoc location :x new-x :y new-y)
+              new-this (-set this component-i new-location)]
+          [new-this new-event])
+        [this event])) ; wall tile, don't move
+    [this event])) ; no move data, don't move
 
 (defn normal-debug
   "Just prints something."

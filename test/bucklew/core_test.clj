@@ -4,7 +4,8 @@
       [bucklew.entities :as ents]
       [bucklew.events :as events]
       [bucklew.items :as items]
-      [bucklew.helpers :as help]))
+      [bucklew.helpers :as help]
+      [bucklew.creatures :as creats]))
 
 (deftest basic-test
   ; Test some basics surrounding entities, components and events.
@@ -126,12 +127,12 @@
         (comps/Physics {:max-hp 20 :hp 20})
         (comps/CanAttack)]})))
   ; make the player attack the warrior
-  (let [make-attack-event (assoc events/make-attack-event :target warrior)
-        [player {:keys [nomen amount type target] :as make-attack-event-after} :as result] (ents/receive-event player make-attack-event)
-        [target-entity take-damage-event] target
+  (let [make-attack-event (assoc-in events/make-attack-event [:data :target] warrior)
+        [player make-attack-event-after] (ents/receive-event player make-attack-event)
+        target (get-in make-attack-event-after [:data :target])
         player-physics (help/find-physics-component (:components player))
         player-hp (:hp player-physics)
-        target-physics (help/find-physics-component (:components target-entity))
+        target-physics (help/find-physics-component (:components target))
         target-hp (:hp target-physics)]
     (is (= target-hp 16))
     (is (= player-hp 20)))
@@ -149,11 +150,11 @@
         (comps/CanAttack)
         (comps/Inventory)
         (comps/Equipment)]})))
-  (def pizza-event (events/map->Event {:nomen :add-item :target items/pizza}))
+  (def pizza-event (events/map->Event {:nomen :add-item :data {:item items/pizza}}))
   (def temp (ents/receive-event player pizza-event))
   (def player (first temp))
   (def exhausted-event (last temp))
-  (is (nil? (:target exhausted-event)))
+  (is (nil? (get-in [:data :item] exhausted-event)))
   (def nomen-is-inventory (partial help/nomen-is :inventory))
   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
   (is (= (count inventory) 1))
@@ -163,7 +164,7 @@
   (def player (first (ents/receive-event player pizza-event)))
   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
   (is (= (count inventory) 4))
-  (def player (first (ents/receive-event player (events/map->Event {:nomen :add-item :target items/sword}))))
+  (def player (first (ents/receive-event player (events/map->Event {:nomen :add-item :data {:item items/sword}}))))
   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
   (is (= (count inventory) 4))
   (def nomen-is-equipment (partial help/nomen-is :equipment))
@@ -176,4 +177,15 @@
   (def sword-equipped-in (:equipped-in (first (filter :equipped-in (:components (first (:contents equipment)))))))
   (is (= (count sword-equipped-in) 1))
   (is (= (first sword-equipped-in) :right-hand))
+  )
+
+(deftest drawing-entities
+  (def player (creats/make-player {:x 185 :y -33}))
+  (let [[player draw-event] (ents/receive-event player events/draw)
+        {:keys [x y glyph fg-colour bg-colour]} (:data draw-event)]
+    (is (= x 185))
+    (is (= y -33))
+    (is (= glyph "@"))
+    (is (= fg-colour "ffffff"))
+    (is (= bg-colour "000000")))
   )

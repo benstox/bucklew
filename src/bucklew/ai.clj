@@ -17,12 +17,13 @@
 (defn dervish
   "Walk in a tight circle."
   [this event component-i]
-  (let [takes-turn (-get this component-i)
+  (let [{:keys [tiles entities]} (:data event)
+        takes-turn (-get this component-i)
         last-turn (get-in takes-turn [:data :last-turn])
         this-turn (mod (inc last-turn) 4)
         this-turn-direction (get dervish-direction-seq this-turn)
         move-event (events/map->Event {:nomen :move
-                                       :data {:direction direction
+                                       :data {:direction this-turn-direction
                                               :tiles tiles
                                               :entities entities}})
         [new-this event] (ents/receive-event this move-event)]

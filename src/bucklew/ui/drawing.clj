@@ -147,7 +147,7 @@
       (draw-regions screen regions vrows vcols origin))
     (doseq [entity entities]
       (let [[entity event] (ents/receive-event entity events/draw)
-            display-info (:target event)
+            display-info (:data event)
             {:keys [x y fg-colour bg-colour glyph]} display-info]
         (when (not-any? nil? '(x y fg-colour bg-colour glyph))
           (draw-entity screen vrows vcols x y glyph fg-colour))))

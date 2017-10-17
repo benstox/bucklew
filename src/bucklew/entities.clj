@@ -46,13 +46,13 @@
       (filter (comp nomen-is-nomen first) (map vector (:components this) (range)))))
   (receive-event [this event]
     (let [nomen (:nomen event)
-          indexed-components (map vector components (range))
-          relevant-components (filter (comp nomen first) indexed-components)]
+          indexed-components (help/enumerate components)
+          relevant-components (filter (comp nomen second) indexed-components)]
       (if (not-empty relevant-components)
         (loop [this this
                event event
                relevant-components relevant-components]
-          (let [[component component-i] (first relevant-components)
+          (let [[component-i component] (first relevant-components)
                 lower-priority-components (rest relevant-components)
                 component-fn (nomen component)
                 [new-this new-event] (component-fn this event component-i)]

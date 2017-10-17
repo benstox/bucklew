@@ -1,6 +1,7 @@
 (ns bucklew.creatures
   (:require [bucklew.entities :as ents]
-            [bucklew.components :as comps]))
+            [bucklew.components :as comps]
+            [bucklew.ai :as ai]))
 
 (def player-components
   [(comps/Physics {:max-hp 20 :hp 20})
@@ -17,3 +18,14 @@
   (let [without-location (ents/map->Entity {:id 1, :nomen "Player", :components player-components})
         player (ents/add-component without-location (comps/Location location))]
     player))
+
+(defn whirling-dervish
+  "Create a whirling dervish!"
+  [location id]
+  (ents/map->Entity {:id id
+                     :nomen "Whirling dervish"
+                     :components [(comps/Physics)
+                                  (comps/CanAttack)
+                                  (comps/TakesTurn {:tick ai/dervish})
+                                  (comps/Location location)
+                                  (comps/Display {:glyph "D"})]}))

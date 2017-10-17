@@ -239,3 +239,50 @@
           (is (= (:x location) 2))
           (is (= (:y location) 2))))))
   )
+
+(deftest whirling-dervish
+  ; test out the whirling dervish AI, should "spin" in a tight circle
+  (def wall (:wall world-core/tiles))
+  (def floor (:floor world-core/tiles))
+  (def tiles [[wall wall  wall  wall]
+              [wall floor floor wall]
+              [wall floor  floor wall]
+              [wall wall  wall  wall]])
+  (def dervish (creats/whirling-dervish {:x 2 :y 2}))
+  (def entities [dervish])
+  (def tick-event (assoc events/tick :data {:tiles tiles :entities entities}))
+  (def nomen-is-location (partial help/nomen-is :location))
+  (def location (first (filter nomen-is-location (:components dervish))))
+  (is (= (:x location) 2))
+  (is (= (:y location) 2))
+  ; time passes, the dervish tries to whirl east but can't
+  (let [[dervish event] (ents/receive-event dervish tick-event)]
+    (def location (first (filter nomen-is-location (:components dervish))))
+    (is (= (:x location) 2))
+    (is (= (:y location) 2))
+    ; time passes, the dervish tries to whirl east but can't
+    (let [[dervish event] (ents/receive-event dervish tick-event)]
+      (def location (first (filter nomen-is-location (:components dervish))))
+      (is (= (:x location) 2))
+      (is (= (:y location) 2))
+      ; time passes, the dervish whirls west
+      (let [[dervish event] (ents/receive-event dervish tick-event)]
+        (def location (first (filter nomen-is-location (:components dervish))))
+        (is (= (:x location) 1))
+        (is (= (:y location) 2))
+        ; time passes, the dervish whirls north
+        (let [[dervish event] (ents/receive-event dervish tick-event)]
+          (def location (first (filter nomen-is-location (:components dervish))))
+          (is (= (:x location) 1))
+          (is (= (:y location) 1))
+          ; time passes, the dervish whirls east
+          (let [[dervish event] (ents/receive-event dervish tick-event)]
+            (def location (first (filter nomen-is-location (:components dervish))))
+            (is (= (:x location) 2))
+            (is (= (:y location) 1))
+            ; time passes, the dervish whirls back south to his starting point
+            (let [[dervish event] (ents/receive-event dervish tick-event)]
+              (def location (first (filter nomen-is-location (:components dervish))))
+              (is (= (:x location) 2))
+              (is (= (:y location) 2))))))))
+  )

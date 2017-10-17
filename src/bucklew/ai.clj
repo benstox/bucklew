@@ -1,5 +1,5 @@
 (ns bucklew.ai
-  (require [bucklew.entities :as ents]
+  (:require [bucklew.entities :as ents]
            [bucklew.events :as events]))
 
 (defn -get

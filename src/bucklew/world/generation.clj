@@ -129,8 +129,10 @@
 
 ; Creatures -------------------------------------------------------------------
 (defn add-creature [world make-creature]
-  (let [creature (make-creature (find-empty-tile world))]
-    (assoc-in world [:entities (:id creature)] creature)))
+  (let [creature (make-creature (find-empty-tile world))
+        entities (:entities world)
+        new-entities (conj entities creature)]
+    (assoc world :entities new-entities)))
 
 (defn add-creatures [world make-creature n]
   (nth (iterate #(add-creature % make-creature)
@@ -139,11 +141,11 @@
 
 (defn populate-world [world]
   (let [world (assoc world :entities [(creats/make-player (find-empty-tile world))])]
-    ; (-> world
-    ;   (add-creatures make-lichen 30)
+    (-> world
+      (add-creatures creats/whirling-dervish 5))))
     ;   (add-creatures make-bunny 20)
     ;   (add-creatures make-silverfish 4))))
-    world))
+    ; world))
 
 
 ; Actual World Creation -------------------------------------------------------

@@ -8,7 +8,7 @@
 
 
 (defn reset-game [game]
-  (let [fresh-world (random-world)]
+  (let [fresh-world (empty-room-world)]
     (-> game
       (assoc :world fresh-world)
       (assoc :uis [(->UI :play)]))))

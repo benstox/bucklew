@@ -330,7 +330,7 @@
                                                                       :get-equip-info normal-get-equip-info})))
 
 (defrecord TakesTurnComponent [nomen priority tick data])
-(defn TakesTurn [& args] (map->TakesTurnComponent (into args {:nomen :takes-turn, :priority 5, :tick normal-tick})))
+(defn TakesTurn [& args] (map->TakesTurnComponent (into args {:nomen :takes-turn, :priority 5, :tick normal-tick, :data {}})))
 
 (defrecord DebugComponent [nomen priority debug])
 (defn Debug [& args] (map->DebugComponent (into args {:nomen :debug, :priority 30, :debug normal-debug})))

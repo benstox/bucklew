@@ -61,7 +61,8 @@
               (recur new-this new-event lower-priority-components))))
         [this event])))             ; no change to either the entity or the event
   (tick [this world entity-i]
-    (let [[new-this new-event] (receive-event this events/tick)
+    (let [{:keys [tiles entities]} world
+          [new-this new-event] (receive-event this (assoc events/tick :data {:tiles tiles :entities entities}))
           new-world (assoc-in world [:entities entity-i] new-this)]
       new-world))
   Object

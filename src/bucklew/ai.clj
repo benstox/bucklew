@@ -15,7 +15,8 @@
 (def dervish-direction-seq [:n :e :s :w])
 
 (defn dervish
-  "Walk in a tight circle."
+  "Walk in a tight circle. Store the direction of the last move made in
+  behind the data key of the TakeTurn component."
   [this event component-i]
   (let [{:keys [tiles entities]} (:data event)
         takes-turn (-get this component-i)
@@ -26,5 +27,7 @@
                                        :data {:direction this-turn-direction
                                               :tiles tiles
                                               :entities entities}})
-        [new-this event] (ents/receive-event this move-event)]
+        [new-this event] (ents/receive-event this move-event)
+        new-takes-turn (assoc-in takes-turn [:data :last-turn] this-turn)
+        new-this (-set new-this component-i new-takes-turn)]
     [new-this event]))

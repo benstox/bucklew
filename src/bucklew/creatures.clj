@@ -21,11 +21,10 @@
 
 (defn whirling-dervish
   "Create a whirling dervish!"
-  [location id]
-  (ents/map->Entity {:id id
-                     :nomen "Whirling dervish"
+  [location]
+  (ents/map->Entity {:nomen "Whirling dervish"
                      :components [(comps/Physics)
                                   (comps/CanAttack)
-                                  (comps/TakesTurn {:tick ai/dervish})
+                                  (comps/TakesTurn {:tick ai/dervish :data {:last-turn 0}})
                                   (comps/Location location)
                                   (comps/Display {:glyph "D"})]}))

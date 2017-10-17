@@ -5,7 +5,8 @@
       [bucklew.events :as events]
       [bucklew.items :as items]
       [bucklew.helpers :as help]
-      [bucklew.creatures :as creats]))
+      [bucklew.creatures :as creats]
+      [bucklew.world.core :as world-core]))
 
 (deftest basic-test
   ; Test some basics surrounding entities, components and events.
@@ -169,7 +170,6 @@
   (is (= (count inventory) 4))
   (def nomen-is-equipment (partial help/nomen-is :equipment))
   (def equipment (first (filter nomen-is-equipment (:components player))))
-  (println (str player))
   (is (= (count (:contents equipment)) 1))
   (is (= (:nomen (first (:contents equipment))) "Sword"))
   (def nomen-is-location (partial help/nomen-is :location))
@@ -180,6 +180,7 @@
   )
 
 (deftest drawing-entities
+  ; test getting the drawing data from an entity
   (def player (creats/make-player {:x 185 :y -33}))
   (let [[player draw-event] (ents/receive-event player events/draw)
         {:keys [x y glyph fg-colour bg-colour]} (:data draw-event)]
@@ -188,4 +189,53 @@
     (is (= glyph "@"))
     (is (= fg-colour "ffffff"))
     (is (= bg-colour "000000")))
+  )
+
+(deftest move-player
+  ; test issuing a move command to a player on a simple map
+  ; ####
+  ; #@.#
+  ; ##.#
+  ; ####
+  (def wall (:wall world-core/tiles))
+  (def floor (:floor world-core/tiles))
+  (def tiles [[wall wall  wall  wall]
+              [wall floor floor wall]
+              [wall wall  floor wall]
+              [wall wall  wall  wall]])
+  (def player (creats/make-player {:x 1 :y 1}))
+  (def entities [player])
+  (defn move-event
+    [direction]
+    (events/map->Event {:nomen :move :data {:direction direction
+                                            :tiles tiles
+                                            :entities entities}}))
+  (def move-east (move-event :e))
+  (def nomen-is-location (partial help/nomen-is :location))
+  (def location (first (filter nomen-is-location (:components player))))
+  (is (= (:x location) 1))
+  (is (= (:y location) 1))
+  ; move east and you should get {:x 2 :y 1}
+  (let [[player event] (ents/receive-event player move-east)]
+    (def location (first (filter nomen-is-location (:components player))))
+    (is (= (:x location) 2))
+    (is (= (:y location) 1))
+    (def move-north (move-event :n))
+    ; try to move north and you should stay put
+    (let [[player event] (ents/receive-event player move-north)]
+      (def location (first (filter nomen-is-location (:components player))))
+      (is (= (:x location) 2))
+      (is (= (:y location) 1))
+      (def move-south (move-event :s))
+      ; move south and you should get {:x 2 :y 2}
+      (let [[player event] (ents/receive-event player move-south)]
+        (def location (first (filter nomen-is-location (:components player))))
+        (is (= (:x location) 2))
+        (is (= (:y location) 2))
+        (def move-west (move-event :w))
+        ; try to move west and you should stay put
+        (let [[player event] (ents/receive-event player move-west)]
+          (def location (first (filter nomen-is-location (:components player))))
+          (is (= (:x location) 2))
+          (is (= (:y location) 2))))))
   )

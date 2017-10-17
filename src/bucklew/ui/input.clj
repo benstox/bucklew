@@ -17,9 +17,9 @@
   (let [[player-i player] (world-core/get-entity-by-id world 1)
         {:keys [tiles entities]} world
         move-event (events/map->Event {:nomen :move
-                                       :target {:direction direction
-                                                :tiles tiles
-                                                :entities entities}})
+                                       :data {:direction direction
+                                              :tiles tiles
+                                              :entities entities}})
         [moved-player event] (ents/receive-event player move-event)
         new-world (assoc-in world [:entities player-i] moved-player)]
     new-world))

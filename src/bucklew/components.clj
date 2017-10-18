@@ -1,4 +1,5 @@
 (ns bucklew.components
+  (:use [com.rpl.specter :only [transform]])
   (:require [bucklew.coords :as coords]
             [bucklew.helpers :as help]
             [bucklew.events :as events]
@@ -24,11 +25,7 @@
   "The normal way an event causes this' hp to take damage."
   [this event component-i]
   (let [damage-amount (get-in event [:data :amount])
-        physics (-get this component-i)
-        old-hp (:hp physics)
-        new-hp (- old-hp damage-amount)
-        new-physics (assoc physics :hp new-hp)
-        new-this (-set this component-i new-physics)]
+        new-this (update-in this [:components component-i :hp] #(- % damage-amount))]
       [new-this event]))
 
 (defn normal-make-attack
@@ -47,21 +44,15 @@
 (defn normal-reduce-amount
   "Component strength will reduce the amount that an event carries with it."
   [this event component-i]
-  (let [component (-get this component-i)
-        amount (get-in event [:data :amount])
-        strength (:strength component)
-        reduced-amount (max (- amount strength) 0)
-        new-event (assoc-in event [:data :amount] reduced-amount)]
+  (let [strength (get-in this [:components component-i :strength])
+        new-event (update-in event [:data :amount] #(max (- % strength) 0))]
     [this new-event]))
 
 (defn normal-boost-amount
   "Component strength will boost the amount that an event carries with it."
   [this event component-i]
-  (let [component (-get this component-i)
-        amount (get-in event [:data :amount])
-        strength (:strength component)
-        boosted-amount (max (+ amount strength) 0)
-        new-event (assoc-in event [:data :amount] boosted-amount)]
+  (let [strength (get-in this [:components component-i :strength])
+        new-event (update-in event [:data :amount] #(max (+ % strength) 0))]
     [this new-event]))
 
 (def normal-equipment-data
@@ -82,9 +73,7 @@
       (if (< num-items capacity)
         (let [new-event (assoc-in event [:data :item] nil)
               new-item (ents/remove-components-by-nomen item :location)
-              new-contents (conj contents new-item)
-              new-inventory (assoc inventory :contents new-contents)
-              new-this (-set this component-i new-inventory)]
+              new-this (update-in this [:components component-i :contents] #(conj % new-item))]
           [new-this new-event]) ; there's a free space so add the item, and send the event away empty
         [this event])) ; inventory full so no change
     [this event])) ; no item so no change
@@ -105,14 +94,12 @@
               possible-slots (filter #(not (contains? filled-slots (:nomen %))) right-type-slots)
               num-possible-slots (count possible-slots)]
           (if (<= slots-required num-possible-slots)
-            (let [new-event (assoc event :data nil)
+            (let [new-event (assoc-in event [:data :item] nil)
                   slots-to-use (take slots-required possible-slots)
                   nomen-slots-to-use (vec (map :nomen slots-to-use))
                   new-item (assoc-in item [:components can-be-equipped-i :equipped-in] nomen-slots-to-use)
-                  new-item-minus-loc (ents/remove-components-by-nomen new-item :location)
-                  new-contents (conj items-already-equipped new-item-minus-loc)
-                  new-equipment (assoc equipment :contents new-contents)
-                  new-this (-set this component-i new-equipment)]
+                  new-item (ents/remove-components-by-nomen new-item :location)
+                  new-this (update-in this [:components component-i :contents] #(conj % new-item))]
               [new-this new-event]) ; there is an appropriate slot so equip the item!
             [this event])) ; equipment full so no change
         [this event])) ; item cannot be equipped so no change

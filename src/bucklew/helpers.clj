@@ -1,5 +1,19 @@
 (ns bucklew.helpers)
 
+(defn get-menu-options
+  [game]
+  "Generate a map of menu options for the main menu."
+  (if (:world game)
+    [{:text "Continue", :action :continue} {:text "New game", :action :new-game}]
+    [{:text "New game", :action :new-game} {:text "~~Empty option~~" :action nil}]))
+
+(defn valid-move?
+  "Does towards the destination tile constitute a valid move?"
+  [dest-coords tiles]
+  (let [{:keys [x y]} dest-coords
+        {kind :kind :as destination} (get-in tiles [y x])]
+    (not (= :wall kind))))
+
 (defn find-first
   "Find the first thing that satisfies a condition in a sequence."
   [f coll]

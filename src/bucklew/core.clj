@@ -1,7 +1,6 @@
 (ns bucklew.core
   (:use [bucklew.ui.core :only [->UI]]
-        [bucklew.ui.drawing :only [draw-game]]
-        [bucklew.ui.input :only [get-input process-input]])
+        [bucklew.ui.drawing :only [draw-game]])
   (:require
     [bucklew.components :as comps]
     [bucklew.creatures :as creats]
@@ -9,39 +8,38 @@
     [bucklew.events :as events]
     [bucklew.helpers :as help]
     [bucklew.items :as items]
+    [bucklew.ui.input :as input]
     [bucklew.world.core :as world-core]
+    [bucklew.world.generation :as gen]
     [lanterna.screen :as s]))
 
 
 ; Data Structures -------------------------------------------------------------
-(defrecord Game [world uis input debug-flags])
+(defrecord Game [world uis screen menu-position debug-flags])
 
 ; Main ------------------------------------------------------------------------
-(defn tick-entity [world indexed-entity]
-  (let [[entity-i entity] indexed-entity]
-    (ents/tick entity world entity-i)))
-
-(defn tick-all [world]
-  (let [entities (:entities world)
-        indexed-entities (help/enumerate entities)]
-    (reduce tick-entity world indexed-entities)))
-
-(defn run-game [game screen]
+(defn run-game [game]
   (loop [{:keys [input uis] :as game} game]
     (when (seq uis)
-      (recur (if input
-               (-> game
-                 (dissoc :input)
-                 (process-input input))
-               (-> game
-                 (update-in [:world] tick-all)
-                 (draw-game screen)
-                 (get-input screen)))))))
+      (recur (input/run-ui game)))))
 
-(defn new-game []
+ ; (defn run-game [game screen]
+ ;   (loop [{:keys [input uis] :as game} game]
+ ;     (when (seq uis)
+ ;       (recur (if input
+ ;                (-> game
+ ;                  (dissoc :input)
+ ;                  (process-input input))
+ ;                (-> game
+ ;                  (update-in [:world] tick-all)
+ ;                  (draw-game screen)
+ ;                  (get-input screen)))))))
+
+(defn new-game [screen]
   (map->Game {:world nil
-              :uis [(->UI :start)]
-              :input nil
+              :uis [(->UI :play) (->UI :menu)]
+              :screen screen
+              :menu-position 0
               :debug-flags {:show-regions false}}))
 
 (defn main
@@ -51,7 +49,7 @@
    (letfn [(go []
              (let [screen (s/get-screen screen-type)]
                (s/in-screen screen
-                            (run-game (new-game) screen))))]
+                            (run-game (new-game screen)))))]
      (if block?
        (go)
        (future (go))))))
@@ -68,5 +66,4 @@
 
 (comment
   (main :swing false)
-  (main :swing true)
-  )
+  (main :swing true))

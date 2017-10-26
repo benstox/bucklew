@@ -3,7 +3,10 @@
   (:require [bucklew.coords :as coords]
             [bucklew.helpers :as help]
             [bucklew.events :as events]
-            [bucklew.entities :as ents]))
+            [bucklew.entities :as ents]
+            [bucklew.ui.core :as ui-core]
+            [bucklew.ui.drawing :as draw]
+            [lanterna.screen :as s]))
 
 ;; COMPONENT FUNCTIONS
 ;; * always take [this event component-i] arguments,
@@ -77,7 +80,7 @@
           [new-this new-event]) ; there's a free space so add the item, and send the event away empty
         [this event])) ; inventory full so no change
     [this event])) ; no item so no change
-  
+
 (defn equipment-add-item
   "Try to equip an item."
   [this event component-i]
@@ -192,7 +195,35 @@
 (defn players-tick
   "The player's turn."
   [this event component-i]
-  [this event])
+  ; (let [{{uis :uis world :world screen :screen :as game} :data} event]
+  ;   (draw/draw-game screen)
+  ;   (let [input (s/get-key-blocking screen)]
+  ;     (case input
+  ;       ; menu stuff, quit, etc.
+  ;       \q (update game :uis #(conj % :menu))
+  ;       ; moves
+  ;       \h (update-in game [:world] move-player :w)
+  ;       \j (update-in game [:world] move-player :s)
+  ;       \k (update-in game [:world] move-player :n)
+  ;       \l (update-in game [:world] move-player :e)
+  ;       \y (update-in game [:world] move-player :nw)
+  ;       \u (update-in game [:world] move-player :ne)
+  ;       \b (update-in game [:world] move-player :sw)
+  ;       \n (update-in game [:world] move-player :se)
+  ;       ; default
+  ;       game)
+    [this event])
+
+; (defn move-player [world direction]
+;   (let [[player-i player] (world-core/get-entity-by-id world 1)
+;         {:keys [tiles entities]} world
+;         move-event (events/map->Event {:nomen :move
+;                                        :data {:direction direction
+;                                               :tiles tiles
+;                                               :entities entities}})
+;         [moved-player event] (ents/receive-event player move-event)
+;         new-world (assoc-in world [:entities player-i] moved-player)]
+;     new-world))
 
 (defn give-draw-event-location
   "Add location from the Location component to the draw event that happens to be passing by."

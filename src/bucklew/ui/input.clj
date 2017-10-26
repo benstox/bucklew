@@ -3,8 +3,10 @@
         [bucklew.ui.core :only [->UI]])
   (:require [bucklew.entities :as ents]
             [bucklew.events :as events]
-            [lanterna.screen :as s]
-            [bucklew.world.core :as world-core]))
+            [bucklew.helpers :as help]
+            [bucklew.ui.drawing :as draw]
+            [bucklew.world.core :as world-core]
+            [lanterna.screen :as s]))
 
 
 (defn reset-game [game]
@@ -13,55 +15,65 @@
       (assoc :world fresh-world)
       (assoc :uis [(->UI :play)]))))
 
-(defn move-player [world direction]
-  (let [[player-i player] (world-core/get-entity-by-id world 1)
-        {:keys [tiles entities]} world
-        move-event (events/map->Event {:nomen :move
-                                       :data {:direction direction
-                                              :tiles tiles
-                                              :entities entities}})
-        [moved-player event] (ents/receive-event player move-event)
-        new-world (assoc-in world [:entities player-i] moved-player)]
-    new-world))
+(defn tick-entity [game indexed-entity]
+  (let [[entity-i entity] indexed-entity]
+    (ents/tick entity entity-i game)))
+
+(defn tick-all [game]
+  (let [{{entities :entities :as world}
+         :world uis
+         :uis screen
+         :screen :as game} game
+        indexed-entities (help/enumerate entities)]
+    (reduce tick-entity game indexed-entities)))
 
 
-(defmulti process-input
-  (fn [game input]
+(defmulti run-ui
+  (fn [game]
     (:kind (last (:uis game)))))
 
-(defmethod process-input :start [game input]
-  (reset-game game))
+(defmethod run-ui :menu [game]
+  (let [{:keys [screen menu-position]} game
+        menu-options (help/get-menu-options game)
+        num-options (count menu-options)]
+    (loop [game game]
+      (draw/draw-game game)
+      (println (str (:menu-position game) " " num-options))
+      (let [input (s/get-key-blocking screen)]
+        (if (= input :enter)
+          (let [menu-position (:menu-position game)
+                choice (get-in menu-options [menu-position :action])]
+            (println choice)
+            (case choice
+              :new-game (-> game (update :uis pop) (reset-game))
+              :continue (update game :uis pop)
+              game))
+          (recur
+            (case input ; move cursor
+              :down (update game :menu-position #(mod (inc %) num-options))
+              \j (update game :menu-position #(mod (inc %) num-options))
+              :up (update game :menu-position #(mod (dec %) num-options))
+              \k (update game :menu-position #(mod (dec %) num-options))
+              game)))))))
 
+; (defmethod run-ui :play [game screen]
+;   (update-in game [:world] tick-all screen))
 
-(defmethod process-input :play [game input]
-  (case input
-    :enter     (assoc game :uis [(->UI :win)])
-    :backspace (assoc game :uis [(->UI :lose)])
-    \q         (assoc game :uis [])
+(defmethod run-ui :play [game]
+  (tick-all game))
 
-    \h (update-in game [:world] move-player :w)
-    \j (update-in game [:world] move-player :s)
-    \k (update-in game [:world] move-player :n)
-    \l (update-in game [:world] move-player :e)
-    \y (update-in game [:world] move-player :nw)
-    \u (update-in game [:world] move-player :ne)
-    \b (update-in game [:world] move-player :sw)
-    \n (update-in game [:world] move-player :se)
+(defmethod run-ui :win [game]
+  (let [screen (:screen game)]
+    (draw/draw-game game)
+    (let [input (s/get-key-blocking screen)]
+      (if (= input :escape)
+        (assoc game :uis [])
+        (assoc game :uis [(->UI :start)])))))
 
-    \R (update-in game [:debug-flags :show-regions] not)
-
-    game))
-
-(defmethod process-input :win [game input]
-  (if (= input :escape)
-    (assoc game :uis [])
-    (assoc game :uis [(->UI :start)])))
-
-(defmethod process-input :lose [game input]
-  (if (= input :escape)
-    (assoc game :uis [])
-    (assoc game :uis [(->UI :start)])))
-
-
-(defn get-input [game screen]
-  (assoc game :input (s/get-key-blocking screen)))
+(defmethod run-ui :lose [game]
+  (let [screen (:screen game)]
+    (draw/draw-game game)
+    (let [input (s/get-key-blocking screen)]
+      (if (= input :escape)
+        (assoc game :uis [])
+        (assoc game :uis [(->UI :start)])))))

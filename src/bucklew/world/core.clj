@@ -49,8 +49,8 @@
             (if (empty? other-entities)
               [new-this new-event]  ; return a (possibly) changed entity and event
               (recur new-this new-event other-entities))))
-        [this event])))             ; no change to either the entity or the event)
-  )
+        [this event]))))             ; no change to either the entity or the event)
+
 
 (defrecord Tile [kind glyph color])
 
@@ -118,4 +118,3 @@
   "Check that the tile at the destination passes the given predicate."
   [world dest pred]
   (pred (get-tile-kind world dest)))
-

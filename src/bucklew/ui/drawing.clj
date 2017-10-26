@@ -7,30 +7,39 @@
 
 ; Definitions -----------------------------------------------------------------
 (defmulti draw-ui
-  (fn [ui game screen]
+  (fn [ui game]
     (:kind ui)))
 
 
 ; Start -----------------------------------------------------------------------
-(defmethod draw-ui :start [ui game screen]
-  (s/put-sheet screen 0 0
-               ["Welcome to the Caves of Clojure!"
-                ""
-                "Press any key to continue."]))
+(defmethod draw-ui :menu [ui game]
+  (let [{:keys [screen menu-position]} game
+        menu-options (help/get-menu-options game)]
+    (do
+      (s/put-string screen 0 0 "Welcome to a Clojure Roguelike!")
+      (doseq [[option-i option] (help/enumerate menu-options)]
+        (s/put-string
+          screen
+          0
+          (+ 3 option-i)
+          (:text option)
+          (when (= option-i menu-position) {:fg :black :bg :white}))))))
 
 
 ; Win -------------------------------------------------------------------------
-(defmethod draw-ui :win [ui game screen]
-  (s/put-sheet screen 0 0
-               ["Congratulations, you win!"
-                "Press escape to exit, anything else to restart."]))
+(defmethod draw-ui :win [ui game]
+  (let [screen (:screen game)]
+    (s/put-sheet screen 0 0
+                 ["Congratulations, you win!"
+                  "Press escape to exit, anything else to restart."])))
 
 
 ; Lose ------------------------------------------------------------------------
-(defmethod draw-ui :lose [ui game screen]
-  (s/put-sheet screen 0 0
-               ["Sorry, better luck next time."
-                "Press escape to exit, anything else to restart."]))
+(defmethod draw-ui :lose [ui game]
+  (let [screen (:screen game)]
+    (s/put-sheet screen 0 0
+                 ["Sorry, better luck next time."
+                  "Press escape to exit, anything else to restart."])))
 
 
 ; Play ------------------------------------------------------------------------
@@ -134,10 +143,9 @@
     (s/put-string screen 0 i msg {:fg :black :bg :white})))
 
 
-(defmethod draw-ui :play [ui game screen]
-  (let [world (:world game)
+(defmethod draw-ui :play [ui game]
+  (let [{:keys [world screen]} game
         {:keys [tiles entities regions]} world
-        player (:player entities)
         [cols rows] (s/get-size screen)
         vcols cols
         vrows (dec rows)
@@ -158,9 +166,10 @@
 
 
 ; Entire Game -----------------------------------------------------------------
-(defn draw-game [game screen]
-  (s/clear screen)
-  (doseq [ui (:uis game)]
-    (draw-ui ui game screen))
-  (s/redraw screen)
-  game)
+(defn draw-game [game]
+  (let [screen (:screen game)]
+    (s/clear screen)
+    (doseq [ui (:uis game)]
+      (draw-ui ui game))
+    (s/redraw screen)
+    game))

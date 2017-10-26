@@ -18,11 +18,11 @@
   (receive-event [this event]
     "Handle the reception of an event by this. Return the possibly modified this and event.
     Tends to involve passing the event through all the entities or components of this.
-    
+
     For world (for now...):
     * located-entities: `([entity event-containing-location-data], ...)`
     * indexed-entities: `([entity-i [entity event-containing-location-data]], ...)`")
-  (tick [this world entity-i]
+  (tick [this entity-i game]
     "Update the world to handle the passing of a tick for this entity."))
 
 (defrecord Entity [id nomen desc components]
@@ -30,7 +30,7 @@
   (add-component [this component]
     (let [new-components (cons component components)
           prioritised (vec (sort-by :priority new-components))]
-    (assoc this :components prioritised)))
+      (assoc this :components prioritised)))
   (sort-components [this]
     (assoc this :components (vec (sort-by :priority (:components this)))))
   (clear-components [this]
@@ -60,11 +60,10 @@
               [new-this new-event]  ; return a (possibly) changed entity and event
               (recur new-this new-event lower-priority-components))))
         [this event])))             ; no change to either the entity or the event
-  (tick [this world entity-i]
-    (let [{:keys [tiles entities]} world
-          [new-this new-event] (receive-event this (assoc events/tick :data {:tiles tiles :entities entities}))
-          new-world (assoc-in world [:entities entity-i] new-this)]
-      new-world))
+  (tick [this entity-i game]
+    (let [[new-this new-event] (receive-event this (assoc events/tick :data game))
+          updated-game (assoc-in game [:world :entities entity-i] new-this)]
+      updated-game))
   Object
   (toString [this]
     (str

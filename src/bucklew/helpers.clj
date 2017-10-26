@@ -7,12 +7,30 @@
     [{:text "Continue", :action :continue} {:text "New game", :action :new-game}]
     [{:text "New game", :action :new-game} {:text "~~Empty option~~" :action nil}]))
 
+(def keys-to-directions
+  {\k     :n
+   :up    :n
+   \l     :e
+   :right :e
+   \j     :s
+   :down  :s
+   \h     :w
+   :left  :w
+   \u     :ne
+   \n     :se
+   \b     :sw
+   \y     :nw})
+
 (defn valid-move?
   "Does towards the destination tile constitute a valid move?"
   [dest-coords tiles]
   (let [{:keys [x y]} dest-coords
         {kind :kind :as destination} (get-in tiles [y x])]
     (not (= :wall kind))))
+
+(defn valid-move-direction?
+  "Does this direction constitute a valid move?"
+  [entity move-data])
 
 (defn find-first
   "Find the first thing that satisfies a condition in a sequence."

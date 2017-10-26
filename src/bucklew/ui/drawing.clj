@@ -11,11 +11,19 @@
     (:kind ui)))
 
 
+(defn clear-screen [screen]
+  (let [[cols rows] (s/get-size screen)
+        blank (apply str (repeat cols \space))]
+    (doseq [row (range rows)]
+      (s/put-string screen 0 row blank))))
+
+
 ; Start -----------------------------------------------------------------------
 (defmethod draw-ui :menu [ui game]
   (let [{:keys [screen menu-position]} game
         menu-options (help/get-menu-options game)]
     (do
+      (clear-screen screen)
       (s/put-string screen 0 0 "Welcome to a Clojure Roguelike!")
       (doseq [[option-i option] (help/enumerate menu-options)]
         (s/put-string
@@ -141,7 +149,6 @@
 (defn draw-messages [screen messages]
   (doseq [[i msg] (help/enumerate messages)]
     (s/put-string screen 0 i msg {:fg :black :bg :white})))
-
 
 (defmethod draw-ui :play [ui game]
   (let [{:keys [world screen]} game

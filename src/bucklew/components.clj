@@ -4,7 +4,7 @@
             [bucklew.helpers :as help]
             [bucklew.events :as events]
             [bucklew.entities :as ents]
-            [bucklew.ui.core :as ui-core]
+            [bucklew.ui.core :as ui]
             [bucklew.ui.drawing :as draw]
             [lanterna.screen :as s]))
 
@@ -195,24 +195,19 @@
 (defn players-tick
   "The player's turn."
   [this event component-i]
-  ; (let [{{uis :uis world :world screen :screen :as game} :data} event]
-  ;   (draw/draw-game screen)
-  ;   (let [input (s/get-key-blocking screen)]
-  ;     (case input
-  ;       ; menu stuff, quit, etc.
-  ;       \q (update game :uis #(conj % :menu))
-  ;       ; moves
-  ;       \h (update-in game [:world] move-player :w)
-  ;       \j (update-in game [:world] move-player :s)
-  ;       \k (update-in game [:world] move-player :n)
-  ;       \l (update-in game [:world] move-player :e)
-  ;       \y (update-in game [:world] move-player :nw)
-  ;       \u (update-in game [:world] move-player :ne)
-  ;       \b (update-in game [:world] move-player :sw)
-  ;       \n (update-in game [:world] move-player :se)
-  ;       ; default
-  ;       game)
-    [this event])
+  (let [{{uis :uis world :world screen :screen run-ui :run-ui :as game} :data} event]
+    (loop [game game]
+      (draw/draw-game game)
+      (let [input (s/get-key-blocking screen)]
+        (if-let [direction (input help/keys-to-directions)]
+          (let [{:keys [tiles entities]} world
+                move-data {:tiles tiles :entities entities :direction direction}
+                [new-this move-event] (ents/receive-event this (assoc events/move :data move-data))]
+            [new-this event])
+          (recur (case input
+            ; menu stuff, quit, etc. or unused keys
+            :escape (run-ui (update game :uis #(conj % (ui/->UI :menu))))
+            game)))))))
 
 ; (defn move-player [world direction]
 ;   (let [[player-i player] (world-core/get-entity-by-id world 1)

@@ -2,7 +2,7 @@
 
 (defrecord Event [nomen data])
 
-;example 
+;example
 (def take-damage-event (map->Event
   {:nomen :take-damage
    :data {:amount 5}}))
@@ -17,3 +17,5 @@
 (def tick (map->Event {:nomen :tick}))
 
 (def draw (map->Event {:nomen :draw :data {}}))
+
+(def move (map->Event {:nomen :move}))

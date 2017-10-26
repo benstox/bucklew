@@ -36,20 +36,18 @@
   (let [{:keys [screen menu-position]} game
         menu-options (help/get-menu-options game)
         num-options (count menu-options)]
-    (loop [game game]
+    (loop [game game] ; menu loop
       (draw/draw-game game)
-      (println (str (:menu-position game) " " num-options))
       (let [input (s/get-key-blocking screen)]
-        (if (= input :enter)
+        (if (= input :enter) ; moves things on, does some action like return to game
           (let [menu-position (:menu-position game)
                 choice (get-in menu-options [menu-position :action])]
-            (println choice)
             (case choice
               :new-game (-> game (update :uis pop) (reset-game))
               :continue (update game :uis pop)
               game))
           (recur
-            (case input ; move cursor
+            (case input ; move cursor, stay in this loop for now
               :down (update game :menu-position #(mod (inc %) num-options))
               \j (update game :menu-position #(mod (inc %) num-options))
               :up (update game :menu-position #(mod (dec %) num-options))

@@ -10,7 +10,7 @@
 
 
 (defn reset-game [game]
-  (let [fresh-world (empty-room-world)
+  (let [fresh-world (random-world)
         restarted (-> game :world nil? not)]
     (-> game
       (assoc :world fresh-world)

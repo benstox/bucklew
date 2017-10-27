@@ -18,7 +18,7 @@
   "Walk in a tight circle. Store the direction of the last move made in
   behind the data key of the TakeTurn component."
   [this event component-i]
-  (let [{:keys [tiles entities]} (:data event)
+  (let [{{tiles :tiles entities :entities} :world :as game} (:data event)
         takes-turn (-get this component-i)
         last-turn (get-in takes-turn [:data :last-turn])
         this-turn (mod (inc last-turn) 4)

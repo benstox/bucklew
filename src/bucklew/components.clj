@@ -195,19 +195,23 @@
 (defn players-tick
   "The player's turn."
   [this event component-i]
-  (let [{{uis :uis world :world screen :screen run-ui :run-ui :as game} :data} event]
+  (let [{{screen :screen run-ui :run-ui :as game} :data} event]
     (loop [game game]
-      (draw/draw-game game)
-      (let [input (s/get-key-blocking screen)]
-        (if-let [direction (input help/keys-to-directions)]
-          (let [{:keys [tiles entities]} world
-                move-data {:tiles tiles :entities entities :direction direction}
-                [new-this move-event] (ents/receive-event this (assoc events/move :data move-data))]
-            [new-this event])
-          (recur (case input
-            ; menu stuff, quit, etc. or unused keys
-            :escape (run-ui (update game :uis #(conj % (ui/->UI :menu))))
-            game)))))))
+      (if (:restarted game)
+        [this (assoc event :data game)] ; send the restarted game straight back
+        (do                             ; otherwise proceed as normal
+          (draw/draw-game game)
+          (let [input (s/get-key-blocking screen)
+                {:keys [world uis]} game]
+            (if-let [direction (input help/keys-to-directions)]
+              (let [{:keys [tiles entities]} world
+                    move-data {:tiles tiles :entities entities :direction direction}
+                    [new-this move-event] (ents/receive-event this (assoc events/move :data move-data))]
+                [new-this event])
+              (recur (case input
+                ; menu stuff, quit, etc. or unused keys
+                :escape (run-ui (update game :uis #(conj % (ui/->UI :menu))))
+                game)))))))))
 
 ; (defn move-player [world direction]
 ;   (let [[player-i player] (world-core/get-entity-by-id world 1)

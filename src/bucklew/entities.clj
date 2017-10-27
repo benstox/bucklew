@@ -62,9 +62,10 @@
         [this event])))             ; no change to either the entity or the event
   (tick [this entity-i game]
     (let [[new-this new-event] (receive-event this (assoc events/tick :data game))
-          updated-game (:data new-event)
-          updated-game (assoc-in updated-game [:world :entities entity-i] new-this)]
-      updated-game))
+          updated-game (:data new-event)]
+      (if (:restarted updated-game)
+        updated-game ; send the restared game straight back
+        (assoc-in updated-game [:world :entities entity-i] new-this))))
   Object
   (toString [this]
     (str

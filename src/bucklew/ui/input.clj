@@ -10,14 +10,19 @@
 
 
 (defn reset-game [game]
-  (let [fresh-world (empty-room-world)]
+  (let [fresh-world (empty-room-world)
+        restarted (-> game :world nil? not)]
     (-> game
       (assoc :world fresh-world)
+      (assoc :restarted restarted)
       (assoc :uis [(->UI :play)]))))
 
 (defn tick-entity [game indexed-entity]
-  (let [[entity-i entity] indexed-entity]
-    (ents/tick entity entity-i game)))
+  (let [[entity-i entity] indexed-entity
+        updated-game (ents/tick entity entity-i game)]
+    (if (:restarted updated-game)
+      (-> updated-game (assoc :restarted false) (reduced)) ; break the reduce here
+      updated-game)))                                      ; otherwise keep reducing
 
 (defn tick-all [game]
   (let [{{entities :entities :as world}
@@ -43,8 +48,9 @@
           (let [menu-position (:menu-position game)
                 choice (get-in menu-options [menu-position :action])]
             (case choice
-              :new-game (-> game (update :uis pop) (reset-game))
+              :new-game (reset-game game)
               :continue (update game :uis pop)
+              :quit (-> game (assoc :uis []) (assoc :restarted true))
               game))
           (recur
             (case input ; move cursor, stay in this loop for now

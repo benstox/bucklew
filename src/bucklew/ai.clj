@@ -27,7 +27,7 @@
                                        :data {:direction this-turn-direction
                                               :tiles tiles
                                               :entities entities}})
-        [new-this event] (ents/receive-event this move-event)
+        [new-this move-event] (ents/receive-event this move-event)
         new-takes-turn (assoc-in takes-turn [:data :last-turn] this-turn)
         new-this (-set new-this component-i new-takes-turn)]
     [new-this event]))

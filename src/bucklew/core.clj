@@ -6,7 +6,7 @@
 
 
 ; Data Structures -------------------------------------------------------------
-(defrecord Game [world uis screen menu-position run-ui debug-flags])
+(defrecord Game [world uis screen menu-position run-ui restarted debug-flags])
 
 ; Main ------------------------------------------------------------------------
 (defn run-game [game]
@@ -20,6 +20,7 @@
               :screen screen
               :menu-position 0
               :run-ui ui-input/run-ui
+              :restarted false
               :debug-flags {:show-regions false}}))
 
 (defn main

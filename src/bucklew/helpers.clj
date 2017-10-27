@@ -4,8 +4,8 @@
   [game]
   "Generate a map of menu options for the main menu."
   (if (:world game)
-    [{:text "Continue", :action :continue} {:text "New game", :action :new-game}]
-    [{:text "New game", :action :new-game} {:text "~~Empty option~~" :action nil}]))
+    [{:text "Continue", :action :continue} {:text "New game", :action :new-game} {:text "Quit", :action :quit}]
+    [{:text "New game", :action :new-game} {:text "Quit" :action :quit}]))
 
 (def keys-to-directions
   {\k     :n

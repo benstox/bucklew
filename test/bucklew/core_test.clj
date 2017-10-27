@@ -56,7 +56,7 @@
           (is (= (:nomen (first (:components player))) :armour))
           (is (= (:nomen (nth (:components player) 1)) :armour))
           (is (= (:nomen (last (:components player))) :physics))
-              
+
           ; attack for 5
           (let [[player event] (ents/receive-event player events/take-damage-event)]
             (def physics (help/find-physics-component (:components player)))
@@ -76,20 +76,20 @@
               (let [[player event] (ents/receive-event player events/take-damage-event)]
                 (def physics (help/find-physics-component (:components player)))
                 (is (= (:hp physics) 11))
-                          
+
                 ; remove armour
                 (let [player (ents/remove-components-by-nomen player :armour)]
                   (is (= (count (:components player)) 1))
-                              
+
                   ; attack for 5
                   (let [[player event] (ents/receive-event player events/take-damage-event)]
                     (def physics (help/find-physics-component (:components player)))
                     (is (= (:hp physics) 6))
-                                  
+
                     ; remove all components
                     (def empty-player (ents/clear-components player))
                     (is (= (str empty-player) "Player. You, the player character.\n"))
-                                  
+
                     ; attack for 5
                     (let [[empty-attacked-player event] (ents/receive-event empty-player events/take-damage-event)]
                       (is (= empty-player empty-attacked-player))
@@ -250,39 +250,40 @@
               [wall wall  wall  wall]])
   (def dervish (creats/whirling-dervish {:x 2 :y 2}))
   (def entities [dervish])
-  (def tick-event (assoc events/tick :data {:tiles tiles :entities entities}))
+  (def game {:world {:entities entities :tiles tiles}})
+  (def tick-event (assoc events/tick :data game))
   (def nomen-is-location (partial help/nomen-is :location))
   (def location (first (filter nomen-is-location (:components dervish))))
   (is (= (:x location) 2))
   (is (= (:y location) 2))
   ; time passes, the dervish tries to whirl east but can't
-  (let [[dervish event] (ents/receive-event dervish tick-event)]
-    (def location (first (filter nomen-is-location (:components dervish))))
+  (let [[dervish event] (ents/receive-event dervish tick-event)
+        location (first (filter nomen-is-location (:components dervish)))]
     (is (= (:x location) 2))
     (is (= (:y location) 2))
     ; time passes, the dervish tries to whirl east but can't
-    (let [[dervish event] (ents/receive-event dervish tick-event)]
-      (def location (first (filter nomen-is-location (:components dervish))))
+    (let [[dervish event] (ents/receive-event dervish tick-event)
+          location (first (filter nomen-is-location (:components dervish)))]
       (is (= (:x location) 2))
       (is (= (:y location) 2))
       ; time passes, the dervish whirls west
-      (let [[dervish event] (ents/receive-event dervish tick-event)]
-        (def location (first (filter nomen-is-location (:components dervish))))
+      (let [[dervish event] (ents/receive-event dervish tick-event)
+            location (first (filter nomen-is-location (:components dervish)))]
         (is (= (:x location) 1))
         (is (= (:y location) 2))
         ; time passes, the dervish whirls north
-        (let [[dervish event] (ents/receive-event dervish tick-event)]
-          (def location (first (filter nomen-is-location (:components dervish))))
+        (let [[dervish event] (ents/receive-event dervish tick-event)
+              location (first (filter nomen-is-location (:components dervish)))]
           (is (= (:x location) 1))
           (is (= (:y location) 1))
           ; time passes, the dervish whirls east
-          (let [[dervish event] (ents/receive-event dervish tick-event)]
-            (def location (first (filter nomen-is-location (:components dervish))))
+          (let [[dervish event] (ents/receive-event dervish tick-event)
+                location (first (filter nomen-is-location (:components dervish)))]
             (is (= (:x location) 2))
             (is (= (:y location) 1))
             ; time passes, the dervish whirls back south to his starting point
-            (let [[dervish event] (ents/receive-event dervish tick-event)]
-              (def location (first (filter nomen-is-location (:components dervish))))
+            (let [[dervish event] (ents/receive-event dervish tick-event)
+                  location (first (filter nomen-is-location (:components dervish)))]
               (is (= (:x location) 2))
               (is (= (:y location) 2))))))))
   )

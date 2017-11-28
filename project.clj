@@ -5,7 +5,8 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [clojure-lanterna "0.9.7"]
-                 [com.rpl/specter "1.0.4"]]
+                 [com.rpl/specter "1.0.5"]
+                 [ebenbild "0.1.0"]]
   :main ^:skip-aot bucklew.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

@@ -27,10 +27,10 @@
                coords)))
 
 
-(defn walkable-neighbors
-  "Return the neighboring coordinates walkable from the given coord."
+(defn walkable-neighbours
+  "Return the neighbouring coordinates walkable from the given coord."
   [level coord]
-  (filter-walkable level (coords/neighbors coord)))
+  (filter-walkable level (coords/neighbours coord)))
 
 (defn walkable-from
   "Return all coordinates walkable from the given coord (including itself)."
@@ -42,7 +42,7 @@
       (let [current (first to-walk)
             walked (conj walked current)
             to-walk (disj to-walk current)
-            candidates (walkable-neighbors level current)
+            candidates (walkable-neighbours level current)
             to-walk (clojure.set/union to-walk (clojure.set/difference candidates walked))]
         (recur walked to-walk)))))
 
@@ -150,7 +150,7 @@
 
 ; Actual World Creation -------------------------------------------------------
 (defn random-world []
-  (let [world (->World (random-tiles) [])
+  (let [world (->World (random-tiles) [] 0)
         world (nth (iterate smooth-world world) 3)
         world (populate-world world)
         world (assoc world :regions (get-region-map (:tiles world)))]

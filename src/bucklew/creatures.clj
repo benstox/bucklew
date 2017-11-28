@@ -1,7 +1,8 @@
 (ns bucklew.creatures
-  (:require [bucklew.entities :as ents]
+  (:require [bucklew.ai :as ai]
             [bucklew.components :as comps]
-            [bucklew.ai :as ai]))
+            [bucklew.entities :as ents]
+            [bucklew.events :as events]))
 
 (def player-components
   [(comps/Physics {:max-hp 20 :hp 20})
@@ -23,7 +24,8 @@
   "Create a whirling dervish!"
   [location]
   (ents/map->Entity {:nomen "Whirling dervish"
-                     :components [(comps/Physics)
+                     :components [(comps/CanInteract)
+                                  (comps/Physics)
                                   (comps/CanAttack)
                                   (comps/TakesTurn {:tick ai/dervish :data {:last-turn 0}})
                                   (comps/Location location)

@@ -205,11 +205,11 @@
               [wall wall  wall  wall]])
   (def player (creats/make-player {:x 1 :y 1}))
   (def entities [player])
+  (def world {:entities entities :tiles tiles})
   (defn move-event
     [direction]
     (events/map->Event {:nomen :move :data {:direction direction
-                                            :tiles tiles
-                                            :entities entities}}))
+                                            :world world}}))
   (def move-east (move-event :e))
   (def nomen-is-location (partial help/nomen-is :location))
   (def location (first (filter nomen-is-location (:components player))))

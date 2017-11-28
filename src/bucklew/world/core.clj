@@ -1,8 +1,10 @@
 (ns bucklew.world.core
-  (:use [bucklew.coords :only [neighbors radial-distance]])
-  (:require [bucklew.entities :as ents]
+  (:require [bucklew.coords :as coords]
+            [bucklew.entities :as ents]
             [bucklew.events :as events]
-            [bucklew.helpers :as help]))
+            [bucklew.helpers :as help]
+            [com.rpl.specter :as sp :refer [select selected? ALL FIRST INDEXED-VALS]]
+            [ebenbild.core :as eb]))
 
 
 ; Constants -------------------------------------------------------------------
@@ -11,45 +13,66 @@
 ; Data structures -------------------------------------------------------------
 (defprotocol WorldProtocol
   (get-entities-by-location [this location]
-    "Return any entities at a certain location:
-    * located-entities: `([entity event-containing-location-data], ...)`
-    * indexed-entities and output: `([entity-i [entity event-containing-location-data]], ...)`")
+    "Return the indices of any entities at a given location.")
+  (get-interacting-entities-by-location [this locadtion]
+    "Return the indices of any entities at a given location that have the CanInteract component.")
+  (get-interaction-from-location [this interactor location]
+    "Get all the entities at a certain location, check whether any of them
+    have an interaction, decide whether they are an ally or enemy of the
+    interactor and return the relevant entity and interaction.")
   (get-entity-by-id [this id]
     "Return the entity with a certain id."))
 
-(defrecord World [tiles entities]
+(defrecord World [tiles entities entity-i]
   WorldProtocol
   (get-entities-by-location [this location]
-    (let [{:keys [x y]} location
-          located-entities (map
-                             #(ents/receive-event % events/get-location)
-                             entities)
-          indexed-entities (help/enumerate located-entities)
-          relevant-entities (filter
-                              (comp #(and (= (:x %) x) (= (:y %) y)) :target last last)
-                              indexed-entities)]
-      relevant-entities))
+    (let [{:keys [x y]} location]
+      (select [:entities
+               INDEXED-VALS ; creates [entity-i entity]
+               (selected? 1 :components ALL (eb/like {:nomen :location :x x :y y})) ; declarative query
+               FIRST] ; navigate to the first item
+         world)))
+  (get-interacting-entities-by-location [this location]
+    (let [{:keys [x y]} location]
+      (select [:entities
+               INDEXED-VALS ; creates [entity-i entity]
+               (selected? 1 :components ALL (eb/like {:nomen :location :x x :y y}))
+               (selected? 1 :components ALL (eb/like {:nomen :can-interact}))
+               FIRST] ; navigate to the first item
+         world)))
+  (get-interaction-from-location [this interactor location]
+    (let [entities-at-dest (get-entities-by-location this location)
+          interactor-team (-> interactor
+            (ents/get-components-by-nomen :can-interact)
+            (first)
+            (:team))
+          get-interaction-event (assoc-in events/get-interaction [:data :interactor-team] interactor-team)
+          results (map (fn [e] [(first e) (ents/receive-event get-interaction-event (second e))]) entities-at-dest)
+          results-w-interaction (filter #(nil? (get-in (second %) [:data :interaction])) results)]
+      (if (empty? results-w-interaction)
+        nil
+        (let [[target-i [target {{interaction :interaction} :data}]] (first results-w-interaction)]
+          {:target-i target-i :target target :interaction interaction}))))
+  (get-interaction-from-location [this interactor-team location]
+    (let [indices-at-dest (get-interacting-entities-by-location this location)]
+      (if (empty? indices-at-dest)
+        nil
+        (let [target-i (first indices-at-dest)
+              interaction-comp (select [:entities
+                                        target-i
+                                        :components
+                                        ALL
+                                        (selected? (eb/like {:nomen :can-interact}))]
+                                  this)
+              target-team (:team interaction-comp)
+              same-team (= interactor-team target-team)
+              ]))))
   (get-entity-by-id [this id]
     (let [indexed-entities (help/enumerate entities)
           relevant-entities (filter (comp :id last) indexed-entities)]
       (if (empty? relevant-entities)
         (throw (Exception. (str "No entities in world with ID " id)))
-        (first relevant-entities))))
-  ents/EntityProtocol
-  (receive-event [this event]
-    (let [relevant-entities (get-entities-by-location this (:target event))]
-      (if (not-empty relevant-entities)
-        (loop [this this
-               event event
-               relevant-entities relevant-entities]
-          (let [[entity-i [entity {:keys [target]}]] (first relevant-entities)
-                other-entities (rest relevant-entities)
-                [new-entity new-event] (ents/receive-event entity event)
-                new-this (assoc-in this [:entities entity-i] new-entity)]
-            (if (empty? other-entities)
-              [new-this new-event]  ; return a (possibly) changed entity and event
-              (recur new-this new-event other-entities))))
-        [this event]))))             ; no change to either the entity or the event)
+        (first relevant-entities)))))
 
 
 (defrecord Tile [kind glyph color])
@@ -108,8 +131,8 @@
       coord
       (recur (random-coordinate)))))
 
-(defn find-empty-neighbor [world coord]
-  (let [candidates (filter #(is-empty? world %) (neighbors coord))]
+(defn find-empty-neighbour [world coord]
+  (let [candidates (filter #(is-empty? world %) (coords/neighbours coord))]
     (when (seq candidates)
       (rand-nth candidates))))
 

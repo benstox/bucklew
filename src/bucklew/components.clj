@@ -1,62 +1,53 @@
 (ns bucklew.components
-  (:use [com.rpl.specter :only [transform]])
   (:require [bucklew.coords :as coords]
             [bucklew.helpers :as help]
             [bucklew.events :as events]
             [bucklew.entities :as ents]
             [bucklew.ui.core :as ui]
             [bucklew.ui.drawing :as draw]
-            [lanterna.screen :as s]))
+            [bucklew.world.core :as world-core]
+            [lanterna.screen :as s]
+            [com.rpl.specter :as specter :refer [select transform setval ALL]]))
 
-;; COMPONENT FUNCTIONS
-;; * always take [this event component-i] arguments,
+;; COMPONENT FUNCTIONS -----------------------------------------------------------------------------
+;; * always take [game entity-i component-i event] arguments,
 ;;  that is the relevant entity, the event happening to the entity,
 ;;  and the index of the current component
 ;; * always return a (possibly) modified [this event] value
 
-(defn -get
-  "Given 'this' and 'component-i' get the current component."
-  [this component-i]
-  (get-in this [:components component-i]))
-
-(defn -set
-  "Given 'this' and 'component-i' set the current component to one with new values in it."
-  [this component-i new-component]
-  (assoc-in this [:components component-i] new-component))
-
 (defn normal-take-damage
   "The normal way an event causes this' hp to take damage."
-  [this event component-i]
+  [game entity-i component-i event]
   (let [damage-amount (get-in event [:data :amount])
-        new-this (update-in this [:components component-i :hp] #(- % damage-amount))]
-      [new-this event]))
+        reduce-hp #(- % damage-amount)
+        new-game (update-in game [:world :entities entity-i :components component-i :hp] reduce-hp)]
+      [new-game event]))
 
 (defn normal-make-attack
   "The normal way an event causes this to make an attack on the CanAttack component.
   Get the data that the make-attack event has accumulated and create a take-damage event
   which will be applied to the target."
-  [this event component-i]
-  (let [{:keys [amount type target] :as event-data} (:data event)
-        take-damage-data {:nomen :take-damage, :data {:amount amount :type type}}
-        take-damage-event (events/map->Event take-damage-data)
-        [attacked-entity take-damage-event] (ents/receive-event target take-damage-event)
+  [game entity-i component-i event]
+  (let [{:keys [amount type target-i] :as event-data} (:data event)
+        take-damage-event (events/map->Event {:nomen :take-damage, :data {:amount amount :type type}})
+        [attacked-entity take-damage-event] (events/fire-event take-damage-event game target-i)
         new-event-data (assoc event-data :target attacked-entity, :take-damage-event take-damage-event)
         new-event (assoc event :data new-event-data)]
-    [this new-event]))
+    [game new-event]))
 
 (defn normal-reduce-amount
   "Component strength will reduce the amount that an event carries with it."
-  [this event component-i]
-  (let [strength (get-in this [:components component-i :strength])
+  [game entity-i component-i event]
+  (let [strength (get-in game [:world :entities entity-i :components component-i :strength])
         new-event (update-in event [:data :amount] #(max (- % strength) 0))]
-    [this new-event]))
+    [game new-event]))
 
 (defn normal-boost-amount
   "Component strength will boost the amount that an event carries with it."
-  [this event component-i]
-  (let [strength (get-in this [:components component-i :strength])
+  [game entity-i component-i event]
+  (let [strength (get-in game [:world :entities entity-i :components component-i :strength])
         new-event (update-in event [:data :amount] #(max (+ % strength) 0))]
-    [this new-event]))
+    [game new-event]))
 
 (def normal-equipment-data
   [{:nomen :right-hand :type :hand :desc "Right hand" :priority 25}
@@ -67,32 +58,31 @@
 
 (defn inventory-add-item
   "Try to add an item to an inventory."
-  [this event component-i]
+  [game entity-i component-i event]
   (if-let [item (get-in event [:data :item])]
-    (let [inventory (-get this component-i)
-          contents (:contents inventory)
-          num-items (count contents)
-          capacity (:capacity inventory)]
+    (let [inventory-comp (get-in game [:world :entities entity-i :components component-i])
+          num-items (count (:contents inventory-comp))
+          capacity (:capacity inventory-comp)]
       (if (< num-items capacity)
         (let [new-event (assoc-in event [:data :item] nil)
               new-item (ents/remove-components-by-nomen item :location)
-              new-this (update-in this [:components component-i :contents] #(conj % new-item))]
-          [new-this new-event]) ; there's a free space so add the item, and send the event away empty
-        [this event])) ; inventory full so no change
-    [this event])) ; no item so no change
+              new-game (update-in game [:world :entities entity-i :components component-i :contents] #(conj % new-item))]
+          [new-game new-event]) ; there's a free space so add the item, and send the event away empty
+        [game event])) ; inventory full so no change
+    [game event])) ; no item so no change
 
 (defn equipment-add-item
   "Try to equip an item."
-  [this event component-i]
-  (if-let [item (get-in event [:data :item])]
+  [game entity-i component-i event]
+  (if-let [item-i (get-in event [:data :item-i])]
     (let [get-equip-info-event (events/map->Event {:nomen :get-equip-info})
-          [item finished-equip-info-event] (ents/receive-event item get-equip-info-event)
+          [item finished-equip-info-event] (events/fire-event get-equip-info-event game item-i)
           equip-info (:data finished-equip-info-event)]
       (if equip-info
         (let [{:keys [slot-types slots-required can-be-equipped-i]} equip-info
-              equipment (-get this component-i)
-              right-type-slots (filter #(contains? slot-types (:type %)) (:slots equipment))
-              items-already-equipped (:contents equipment)
+              equipment-comp (get-in game [:world :entities entity-i :components component-i])
+              right-type-slots (filter #(contains? slot-types (:type %)) (:slots equipment-comp))
+              items-already-equipped (:contents equipment-comp)
               filled-slots (reduce #(into %1 (:equipped-in %2)) #{} (flatten (map :components items-already-equipped)))
               possible-slots (filter #(not (contains? filled-slots (:nomen %))) right-type-slots)
               num-possible-slots (count possible-slots)]
@@ -102,112 +92,117 @@
                   nomen-slots-to-use (vec (map :nomen slots-to-use))
                   new-item (assoc-in item [:components can-be-equipped-i :equipped-in] nomen-slots-to-use)
                   new-item (ents/remove-components-by-nomen new-item :location)
-                  new-this (update-in this [:components component-i :contents] #(conj % new-item))]
-              [new-this new-event]) ; there is an appropriate slot so equip the item!
-            [this event])) ; equipment full so no change
-        [this event])) ; item cannot be equipped so no change
-    [this event])) ; no item so no change
+                  new-game (update-in game [:world :entities entity-i :components component-i :contents] #(conj % new-item))]
+              [new-game new-event]) ; there is an appropriate slot so equip the item!
+            [game event])) ; equipment full so no change
+        [game event])) ; item cannot be equipped so no change
+    [game event])) ; no item so no change
 
 (defn normal-get-equip-info
   "Gets called by a CanBeEquipped component and send back relevant info and index for equipping
   this item."
-  [this event component-i]
+  [game entity-i component-i event]
   (if (nil? (:data event))
     (let [can-be-equipped-i component-i
-          can-be-equipped (-get this component-i)
+          can-be-equipped (get-in game [:world :entities entity-i :components component-i])
           {:keys [slot-types slots-required equipped-in]} can-be-equipped
           info {:slot-types slot-types
                 :slots-required slots-required
                 :equipped-in equipped-in
                 :can-be-equipped-i can-be-equipped-i}
           new-event (assoc event :data info)]
-      [this new-event]) ; returns data under the new-event :data key
-    [this event])) ; only returns info if target is nil
+      [game new-event]) ; returns data under the new-event :data key
+    [game event])) ; only returns info if target is nil
 
 (defn unequip
-  [this event component-i]
+  [game entity-i component-i event]
   (if-let [slot (get-in event [:data :slot])]
-    (let [equipment (-get this component-i)
-          equipped-items (:contents equipment)
+    (let [equipment-comp (get-in game [:world :entities entity-i :components component-i])
+          equipped-items (:contents equipment-comp)
           get-equip-info-event (events/map->Event {:nomen :get-equip-info})
           items-equip-info (map vector (map #(get-in (second (ents/receive-event % get-equip-info-event)) [:data :item]) equipped-items) (range))
           [item-in-slot item-in-slot-i] (first (filter #(some #{slot} (:equipped-in (first %))) items-equip-info))
           new-item (get equipped-items item-in-slot-i)
           new-item-unequipped (assoc-in new-item [:components (:can-be-equipped-i item-in-slot) :equipped-in] [])
           new-equipped-items (help/vec-remove equipped-items item-in-slot-i)
-          new-equipment (assoc equipment :contents new-equipped-items)
-          new-this (-set this component-i new-equipment)
+          new-game (assoc-in game [:world :entities entity-i :components component-i :contents] new-equipped-items)
           new-event (events/map->Event {:nomen :add-item :data {:item new-item}})]
-      [new-this new-event])
-    [this event])) ; no slot so no change
+      [new-game new-event])
+    [game event])) ; no slot so no change
 
 (defn normal-set-location
   "Replace the location coordinates with some new ones."
-  [this event component-i]
+  [game entity-i component-i event]
   (if-let [{:keys [new-x new-y] :as new-coords} (:data event)]
-    (let [location (get-in this [:components component-i])
+    (let [location-comp (get-in game [:world :entities entity-i :components component-i])
           new-event (assoc event :data nil)
-          new-location (assoc location :x new-x :y new-y)
-          new-this (-set this component-i new-location)]
-      [new-this new-event])
-    [this event])) ; no location to update to
+          new-location-comp (assoc location-comp :x new-x :y new-y)
+          new-game (assoc-in game [:world :entities entity-i :components component-i] new-location-comp)]
+      [new-game new-event])
+    [game event])) ; no location to update to
 
 (defn normal-get-location
-  "Gets called by a Location component and send back relevant info and index for this.."
-  [this event component-i]
+  "Gets called by a Location component and send back relevant info and index for the entity."
+  [game entity-i component-i event]
   (if (nil? (:data event))
-    (let [location-i component-i
-          location (-get this component-i)
+    (let [location (get-in game [:world :entities entity-i :components component-i])
           {:keys [x y]} location
-          info {:x x :y y :location-i location-i}
+          info {:x x :y y :location-i component-i}
           new-event (assoc event :data info)]
-      [this new-event]) ; returns data under the new-event :data key
-    [this event])) ; only returns info if target is nil
+      [game new-event]) ; returns data under the new-event :data key
+    [game event])) ; only returns info if target is nil
 
 (defn normal-move
   "Move the entity by an amount in each direction (dx, dy)."
-  [this event component-i]
+  [game entity-i component-i event]
   (if-let [move-data (:data event)]
-    (let [{:keys [tiles entities direction]} move-data
+    (let [{{tiles :tiles entities :entities :as world} :world :as game} game
+          direction (get-in event [:data :direction])
           {dx :x dy :y} (direction coords/directions)
-          {:keys [x y] :as location} (-get this component-i)
-          [new-x new-y] (map + [dx dy] [x y])]
-      (if (not= (get-in tiles [new-y new-x :kind]) :wall)
-        (let [new-event (assoc event :data nil)
-              new-location (assoc location :x new-x :y new-y)
-              new-this (-set this component-i new-location)]
-          [new-this new-event])
-        [this event])) ; wall tile, don't move
-    [this event])) ; no move data, don't move
+          {:keys [x y] :as location-comp} (get-in world [:entities entity-i :components component-i])
+          [new-x new-y] (map + [dx dy] [x y])
+          destination {:x new-x :y new-y}
+          entity (get-in world [:entities entity-i])]
+      (if-let [{:keys [interaction target target-i]} (world-core/get-interaction-from-location world entity destination)]
+        (let [make-attack-event (assoc-in events/make-attack-event [:data :target] target) ;; NOT READY/WORKING YET
+              [new-this {{target :target} :data}] (events/fire-event make-attack-event game entity-i) ;; NOT READY/WORKING YET
+              new-event (events/map->Event {:nomen :return-data :data {}})] ;; NOT READY/WORKING YET
+          [new-this new-event]) ;; NOT READY/WORKING YET
+        (if (not= (get-in tiles [new-y new-x :kind]) :wall)
+          (let [new-event (assoc event :data nil)
+                new-location-comp (assoc location-comp :x new-x :y new-y)
+                new-game (assoc-in game [:world :entities entity-i :components component-i] new-location-comp)]
+            [new-game new-event])
+          [game event])) ; wall tile, don't move
+    [game event]))) ; no move data, don't move
 
 (defn normal-debug
   "Just prints something."
-  [this event component-i]
+  [game entity-i component-i event]
   (do
     (println "DEBUG!!")
-    [this event]))
+    [game event]))
 
 (defn normal-tick
   "A normal AI??"
-  [this event component-i]
-  [this event])
+  [game entity-i component-i event]
+  [game event])
 
 (defn players-tick
   "The player's turn."
-  [this event component-i]
-  (let [{{screen :screen run-ui :run-ui :as game} :data} event]
+  [game entity-i component-i event]
+  (let [{screen :screen run-ui :run-ui :as game} game]
     (loop [game game]
       (if (:restarted game)
-        [this (assoc event :data game)] ; send the restarted game straight back
+        [game (assoc event :data game)] ; send the restarted game straight back
         (do                             ; otherwise proceed as normal
           (draw/draw-game game)
           (let [input (s/get-key-blocking screen)
                 {:keys [world uis]} game]
             (if-let [direction (input help/keys-to-directions)]
-              (let [{:keys [tiles entities]} world
-                    move-data {:tiles tiles :entities entities :direction direction}
-                    [new-this move-event] (ents/receive-event this (assoc events/move :data move-data))]
-                [new-this event])
+              (let [move-data {:world world :direction direction}
+                    [new-game move-event] (events/fire-event (assoc events/move :data move-data) entity-i)]
+                [new-game event])
               (recur (case input
                 ; menu stuff, quit, etc. or unused keys
                 :escape (run-ui (update game :uis #(conj % (ui/->UI :menu))))
@@ -215,23 +210,35 @@
 
 (defn give-draw-event-location
   "Add location from the Location component to the draw event that happens to be passing by."
-  [this event component-i]
-  (let [{:keys [x y]} (-get this component-i)
+  [game entity-i component-i event]
+  (let [{:keys [x y]} (get-in game [:world :entities entity-i :components component-i])
         display-data (:data event)
         new-display-data (assoc display-data :x x, :y y)
         new-event (assoc event :data new-display-data)]
-    [this new-event]))
+    [game new-event]))
 
 (defn normal-draw
   "Adds colours and glyph from the Display component to the draw event that happens to be passing by."
-  [this event component-i]
-  (let [{:keys [glyph fg-colour bg-colour]} (-get this component-i)
+  [game entity-i component-i event]
+  (let [{:keys [glyph fg-colour bg-colour]} (get-in game [:world :entities entity-i :components component-i])
         display-data (:data event)
         new-display-data (assoc display-data :glyph glyph, :fg-colour fg-colour, :bg-colour bg-colour)
         new-event (assoc event :data new-display-data)]
-    [this new-event]))
+    [game new-event]))
 
-;; COMPONENTS
+(defn normal-get-interaction
+  "Decide whether this is an enemy or an ally of the interactor and send back the
+  relevant interaction."
+  [game entity-i component-i event]
+  (if-let [interactor-team (get-in event [:data :interactor-team])]
+    (let [{:keys [team ally-interaction enemy-interaction] :as can-interact} (get-in game [:world :entities entity-i :components component-i])
+          event (assoc-in event [:data :interactor-team] nil)]
+      (if (= interactor-team team)
+        [game (assoc-in event [:data :interaction] ally-interaction)]
+        [game (assoc-in event [:data :interaction] enemy-interaction)]))
+    [game event]))
+
+;; COMPONENTS --------------------------------------------------------------------------------------
 
 (defrecord DisplayComponent [nomen priority glyph fg-colour bg-colour draw])
 (defn Display [& args] (map->DisplayComponent (into args {:nomen :display
@@ -341,5 +348,10 @@
 (defrecord DebugComponent [nomen priority debug])
 (defn Debug [& args] (map->DebugComponent (into args {:nomen :debug, :priority 30, :debug normal-debug})))
 
-(defrecord TeamComponent [nomen priority team])
-(defn Team [& args] (map->TeamComponent (into args {:nomen :team})))
+(defrecord CanInteractComponent [nomen priority team get-interaction ally-interaction enemy-interaction])
+(defn CanInteract [& args] (map->CanInteractComponent (into args {:nomen :can-interact
+                                                                  :priority 10
+                                                                  :team :enemies
+                                                                  :get-interaction normal-get-interaction
+                                                                  :enemy-interaction :attack
+                                                                  :ally-interaction :speak})))

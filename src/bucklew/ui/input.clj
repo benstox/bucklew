@@ -17,20 +17,15 @@
       (assoc :restarted restarted)
       (assoc :uis [(->UI :play)]))))
 
-(defn tick-entity [game indexed-entity]
-  (let [[entity-i entity] indexed-entity
-        updated-game (ents/tick entity entity-i game)]
-    (if (:restarted updated-game)
-      (-> updated-game (assoc :restarted false) (reduced)) ; break the reduce here
-      updated-game)))                                      ; otherwise keep reducing
+(defn tick-entity [game]
+  )
 
-(defn tick-all [game]
-  (let [{{entities :entities :as world}
-         :world uis
-         :uis screen
-         :screen :as game} game
-        indexed-entities (help/enumerate entities)]
-    (reduce tick-entity game indexed-entities)))
+      ; (tick [this entity-i game]
+      ;   (let [[new-this new-event] (receive-event this (assoc events/tick :data game))
+      ;         updated-game (:data new-event)]
+      ;     (if (:restarted updated-game)
+      ;       updated-game ; send the restared game straight back
+      ;       (assoc-in updated-game [:world :entities entity-i] new-this))))
 
 
 (defmulti run-ui
@@ -60,11 +55,13 @@
               \k (update game :menu-position #(mod (dec %) num-options))
               game)))))))
 
-; (defmethod run-ui :play [game screen]
-;   (update-in game [:world] tick-all screen))
-
 (defmethod run-ui :play [game]
-  (tick-all game))
+  (let [entity-i (get-in game [:world :entity-i])
+        [updated-game tick-event] (events/fire-event events/tick game entity-i) ; the entity takes a turn
+        entities (get-in game [:world :entities])
+        num-entities (count entities)
+        updated-game (update-in updated-game [:world :entity-i] #(mod (inc %) num-entities))]
+    updated-game))
 
 (defmethod run-ui :win [game]
   (let [screen (:screen game)]

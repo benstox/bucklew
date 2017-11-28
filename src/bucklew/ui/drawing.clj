@@ -160,8 +160,8 @@
     (draw-world screen vrows vcols origin tiles)
     (when (get-in game [:debug-flags :show-regions])
       (draw-regions screen regions vrows vcols origin))
-    (doseq [entity entities]
-      (let [[entity event] (ents/receive-event entity events/draw)
+    (doseq [entity-i (range (count entities))]
+      (let [[game event] (events/fire-event events/draw game entity-i)
             display-info (:data event)
             {:keys [x y fg-colour bg-colour glyph]} display-info]
         (when (not-any? nil? '(x y fg-colour bg-colour glyph))

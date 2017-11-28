@@ -4,7 +4,7 @@
 
 (defn radial-distance
   "Return the radial distance between two points.
-  
+
   There might be a better name for this, but in a nutshell:
 
       3333333
@@ -14,7 +14,7 @@
       3211123
       3222223
       3333333
-  
+
   "
   [coord1 coord2]
   (let [{x1 :x y1 :y} coord1
@@ -50,7 +50,7 @@
   [origin dir]
   (offset-coords origin (dir-to-offset dir)))
 
-(defn neighbors
-  "Return the coordinates of all neighboring squares of the given coord."
+(defn neighbours
+  "Return the coordinates of all neighbouring squares of the given coord."
   [origin]
   (map offset-coords (vals directions) (repeat origin)))

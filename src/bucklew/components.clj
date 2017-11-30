@@ -163,11 +163,10 @@
           [new-x new-y] (map + [dx dy] [x y])
           destination {:x new-x :y new-y}
           entity (get-in world [:entities entity-i])]
-      (if-let [{:keys [interaction target target-i]} (world-core/get-interaction-from-location world entity destination)]
-        (let [make-attack-event (assoc-in events/make-attack-event [:data :target] target) ;; NOT READY/WORKING YET
-              [new-this {{target :target} :data}] (events/fire-event make-attack-event game entity-i) ;; NOT READY/WORKING YET
-              new-event (events/map->Event {:nomen :return-data :data {}})] ;; NOT READY/WORKING YET
-          [new-this new-event]) ;; NOT READY/WORKING YET
+      (if-let [{:keys [interaction target-i]} (world-core/get-interaction-from-location world entity destination)]
+        (let [make-attack-event (assoc-in events/make-attack-event [:data :target-i] target-i)
+              [new-game new-event] (events/fire-event make-attack-event game entity-i)]
+          [new-game new-event])
         (if (not= (get-in tiles [new-y new-x :kind]) :wall)
           (let [new-event (assoc event :data nil)
                 new-location-comp (assoc location-comp :x new-x :y new-y)
@@ -201,7 +200,7 @@
                 {:keys [world uis]} game]
             (if-let [direction (input help/keys-to-directions)]
               (let [move-data {:world world :direction direction}
-                    [new-game move-event] (events/fire-event (assoc events/move :data move-data) entity-i)]
+                    [new-game move-event] (events/fire-event (assoc events/move :data move-data) game entity-i)]
                 [new-game event])
               (recur (case input
                 ; menu stuff, quit, etc. or unused keys

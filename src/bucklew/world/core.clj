@@ -16,7 +16,7 @@
     "Return the indices of any entities at a given location.")
   (get-interacting-entities-by-location [this locadtion]
     "Return the indices of any entities at a given location that have the CanInteract component.")
-  (get-interaction-from-location [this interactor location]
+  (get-interaction-from-location [this interactor-team location]
     "Get all the entities at a certain location, check whether any of them
     have an interaction, decide whether they are an ally or enemy of the
     interactor and return the relevant entity and interaction.")
@@ -31,7 +31,7 @@
                INDEXED-VALS ; creates [entity-i entity]
                (selected? 1 :components ALL (eb/like {:nomen :location :x x :y y})) ; declarative query
                FIRST] ; navigate to the first item
-         world)))
+         this)))
   (get-interacting-entities-by-location [this location]
     (let [{:keys [x y]} location]
       (select [:entities
@@ -39,20 +39,7 @@
                (selected? 1 :components ALL (eb/like {:nomen :location :x x :y y}))
                (selected? 1 :components ALL (eb/like {:nomen :can-interact}))
                FIRST] ; navigate to the first item
-         world)))
-  (get-interaction-from-location [this interactor location]
-    (let [entities-at-dest (get-entities-by-location this location)
-          interactor-team (-> interactor
-            (ents/get-components-by-nomen :can-interact)
-            (first)
-            (:team))
-          get-interaction-event (assoc-in events/get-interaction [:data :interactor-team] interactor-team)
-          results (map (fn [e] [(first e) (ents/receive-event get-interaction-event (second e))]) entities-at-dest)
-          results-w-interaction (filter #(nil? (get-in (second %) [:data :interaction])) results)]
-      (if (empty? results-w-interaction)
-        nil
-        (let [[target-i [target {{interaction :interaction} :data}]] (first results-w-interaction)]
-          {:target-i target-i :target target :interaction interaction}))))
+         this)))
   (get-interaction-from-location [this interactor-team location]
     (let [indices-at-dest (get-interacting-entities-by-location this location)]
       (if (empty? indices-at-dest)
@@ -66,7 +53,9 @@
                                   this)
               target-team (:team interaction-comp)
               same-team (= interactor-team target-team)
-              ]))))
+              interaction-type (get {true :ally-interaction, false :enemy-interaction} same-team)
+              interaction (get interaction-comp interaction-type)]
+          {:target-i target-i, :interaction interaction}))))
   (get-entity-by-id [this id]
     (let [indexed-entities (help/enumerate entities)
           relevant-entities (filter (comp :id last) indexed-entities)]

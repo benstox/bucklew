@@ -29,16 +29,18 @@
   (let [components (get-in game [:world :entities entity-i :components])
         nomen (:nomen event)
         indexed-components (help/enumerate components)
-        relevant-components (filter (comp nomen second) indexed-components)]
+        relevant-components (filter (comp #(contains? % nomen) second) indexed-components)]
+    (println (str nomen " " (count relevant-components)))
     (if (not-empty relevant-components)
       (loop [game game
              event event
              relevant-components relevant-components]
         (let [[component-i component] (first relevant-components)
-              lower-priority-components (rest relevant-components)
+              rest-of-components (rest relevant-components)
               component-fn (nomen component)
               [new-game new-event] (component-fn game entity-i component-i event)]
-          (if (empty? lower-priority-components)
+          (println (str "fire-event " nomen " " (get-in new-game [:world :entities entity-i])))
+          (if (empty? rest-of-components)
             [new-game new-event]  ; return a (possibly) changed entity and event
-            (recur new-game new-event lower-priority-components))))
+            (recur new-game new-event rest-of-components))))
       [game event]))) ; no change to either the entity or the event

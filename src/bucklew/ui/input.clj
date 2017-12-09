@@ -17,17 +17,6 @@
       (assoc :restarted restarted)
       (assoc :uis [(->UI :play)]))))
 
-(defn tick-entity [game]
-  )
-
-      ; (tick [this entity-i game]
-      ;   (let [[new-this new-event] (receive-event this (assoc events/tick :data game))
-      ;         updated-game (:data new-event)]
-      ;     (if (:restarted updated-game)
-      ;       updated-game ; send the restared game straight back
-      ;       (assoc-in updated-game [:world :entities entity-i] new-this))))
-
-
 (defmulti run-ui
   (fn [game]
     (:kind (last (:uis game)))))
@@ -61,6 +50,7 @@
         entities (get-in game [:world :entities])
         num-entities (count entities)
         updated-game (update-in updated-game [:world :entity-i] #(mod (inc %) num-entities))]
+    (println (str "run-ui  " (get-in updated-game [:world :entities entity-i])))
     updated-game))
 
 (defmethod run-ui :win [game]

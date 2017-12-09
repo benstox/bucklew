@@ -155,14 +155,15 @@
 (defn normal-move
   "Move the entity by an amount in each direction (dx, dy)."
   [game entity-i component-i event]
-  (if-let [move-data (:data event)]
+  (if-let [direction (get-in event [:data :direction])]
     (let [{{tiles :tiles entities :entities :as world} :world :as game} game
-          direction (get-in event [:data :direction])
           {dx :x dy :y} (direction coords/directions)
           {:keys [x y] :as location-comp} (get-in world [:entities entity-i :components component-i])
           [new-x new-y] (map + [dx dy] [x y])
           destination {:x new-x :y new-y}
           entity (get-in world [:entities entity-i])]
+      (println x y)
+      (println new-x new-y)
       (if-let [{:keys [interaction target-i]} (world-core/get-interaction-from-location world entity destination)]
         (let [make-attack-event (assoc-in events/make-attack-event [:data :target-i] target-i)
               [new-game new-event] (events/fire-event make-attack-event game entity-i)]
@@ -171,6 +172,7 @@
           (let [new-event (assoc event :data nil)
                 new-location-comp (assoc location-comp :x new-x :y new-y)
                 new-game (assoc-in game [:world :entities entity-i :components component-i] new-location-comp)]
+            (println (str "normal move " (get-in new-game [:world :entities entity-i])))
             [new-game new-event])
           [game event])) ; wall tile, don't move
     [game event]))) ; no move data, don't move
@@ -195,12 +197,14 @@
       (if (:restarted game)
         [game (assoc event :data game)] ; send the restarted game straight back
         (do                             ; otherwise proceed as normal
+          (println "###")
           (draw/draw-game game)
           (let [input (s/get-key-blocking screen)
                 {:keys [world uis]} game]
-            (if-let [direction (input help/keys-to-directions)]
-              (let [move-data {:world world :direction direction}
+            (if-let [direction (get help/keys-to-directions input)]
+              (let [move-data {:direction direction}
                     [new-game move-event] (events/fire-event (assoc events/move :data move-data) game entity-i)]
+                (println (str "players-tick " (get-in new-game [:world :entities entity-i])))
                 [new-game event])
               (recur (case input
                 ; menu stuff, quit, etc. or unused keys

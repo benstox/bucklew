@@ -11,10 +11,12 @@
 (deftest basic-test
   ; Test some basics surrounding entities, components and events.
   ; create the character
+  (def player-i 0)
   (def player (ents/map->Entity
     {:id 1
      :nomen "Player"
      :components [(comps/Physics {:hp 20 :max-hp 20})]}))
+  (def game {:world {:entities [player]}})
   (def physics (help/find-physics-component (:components player)))
   (is (= (str player) "Player.\nStrength: 5; HP: 20/20\n"))
   (is (= (:id player) 1))
@@ -27,7 +29,8 @@
   (is (= (str player) "Player. You, the player character.\nStrength: 5; HP: 20/20\n"))
 
   ; attack for 5
-  (let [[attacked-player event] (ents/receive-event player events/take-damage-event)]
+  (let [[updated-game event] (events/fire-event events/take-damage-event game player-i)
+        attacked-player (get-in updated-game [:world :entities player-i])]
     (is (not= player attacked-player))
     (def physics (help/find-physics-component (:components attacked-player)))
     (is (= (:max-hp physics) 20))
@@ -44,7 +47,8 @@
       (is (= (:hp physics) 15))
 
       ; attack for 5
-      (let [[player event] (ents/receive-event player events/take-damage-event)]
+      (let [[updated-game event] (events/fire-event events/take-damage-event updated-game player-i)
+            player (get-in updated-game [:world :entities player-i])]
         (def physics (help/find-physics-component (:components player)))
         (is (= (:hp physics) 12))
 
@@ -58,7 +62,8 @@
           (is (= (:nomen (last (:components player))) :physics))
 
           ; attack for 5
-          (let [[player event] (ents/receive-event player events/take-damage-event)]
+          (let [[updated-game event] (events/fire-event events/take-damage-event updated-game player-i)
+                player (get-in updated-game [:world :entities player-i])]
             (def physics (help/find-physics-component (:components player)))
             (is (= (:hp physics) 11))
 
@@ -73,7 +78,8 @@
               (is (= (:nomen (last (:components player))) :physics))
 
               ; attack for 5
-              (let [[player event] (ents/receive-event player events/take-damage-event)]
+              (let [[updated-game event] (events/fire-event events/take-damage-event updated-game player-i)
+                    player (get-in updated-game [:world :entities player-i])]
                 (def physics (help/find-physics-component (:components player)))
                 (is (= (:hp physics) 11))
 
@@ -82,18 +88,20 @@
                   (is (= (count (:components player)) 1))
 
                   ; attack for 5
-                  (let [[player event] (ents/receive-event player events/take-damage-event)]
+                  (let [[updated-game event] (events/fire-event events/take-damage-event updated-game player-i)
+                        player (get-in updated-game [:world :entities player-i])]
                     (def physics (help/find-physics-component (:components player)))
                     (is (= (:hp physics) 6))
 
                     ; remove all components
                     (def empty-player (ents/clear-components player))
-                    (is (= (str empty-player) "Player. You, the player character.\n"))
+                    (let [updated-game (assoc-in updated-game [:world :entities player-i] empty-player)]
+                      (is (= (str empty-player) "Player. You, the player character.\n"))
 
-                    ; attack for 5
-                    (let [[empty-attacked-player event] (ents/receive-event empty-player events/take-damage-event)]
-                      (is (= empty-player empty-attacked-player))
-  ))))))))))
+                      ; attack for 5
+                      (let [[empty-attacked-player event] (events/fire-event events/take-damage-event updated-game player-i)]
+                        (is (= empty-player empty-attacked-player))
+  )))))))))))
   )
 
 (deftest sort-components

@@ -10,9 +10,8 @@
 
 ; Main ------------------------------------------------------------------------
 (defn run-game [game]
-  (loop [{:keys [input uis] :as game} game]
-    (when (seq uis)
-      (recur (ui-input/run-ui game)))))
+  (when (seq (:uis game))
+    (recur (ui-input/run-ui game))))
 
 (defn new-game [screen]
   (map->Game {:world nil

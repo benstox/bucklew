@@ -123,35 +123,39 @@
   (is (= (:priority (last (:components player))) 100))
   (is (= (:priority (first (:components player))) 50)))
 
-; (deftest basic-attack
-;   ; Test basic attacking.
-;   (def player (ents/sort-components
-;     (ents/map->Entity {
-;       :id 1
-;       :nomen "Player"
-;       :components [
-;         (comps/Armour {:strength 2})
-;         (comps/Physics {:max-hp 20 :hp 20})
-;         (comps/CanAttack)]})))
-;   (def warrior (ents/sort-components
-;     (ents/map->Entity {
-;       :id 2
-;       :nomen "Warrior"
-;       :components [
-;         (comps/Armour {:strength 1})
-;         (comps/Physics {:max-hp 20 :hp 20})
-;         (comps/CanAttack)]})))
-;   ; make the player attack the warrior
-;   (let [make-attack-event (assoc-in events/make-attack-event [:data :target] warrior)
-;         [player make-attack-event-after] (ents/receive-event player make-attack-event)
-;         target (get-in make-attack-event-after [:data :target])
-;         player-physics (help/find-physics-component (:components player))
-;         player-hp (:hp player-physics)
-;         target-physics (help/find-physics-component (:components target))
-;         target-hp (:hp target-physics)]
-;     (is (= target-hp 16))
-;     (is (= player-hp 20)))
-;   )
+(deftest basic-attack
+  ; Test basic attacking.
+  (def player-i 0)
+  (def warrior-i 1)
+  (def player (ents/sort-components
+    (ents/map->Entity {
+      :id 1
+      :nomen "Player"
+      :components [
+        (comps/Armour {:strength 2})
+        (comps/Physics {:max-hp 20 :hp 20})
+        (comps/CanAttack)]})))
+  (def warrior (ents/sort-components
+    (ents/map->Entity {
+      :id 2
+      :nomen "Warrior"
+      :components [
+        (comps/Armour {:strength 1})
+        (comps/Physics {:max-hp 20 :hp 20})
+        (comps/CanAttack)]})))
+  (def game {:world {:entities [player warrior]}})
+  ; make the player attack the warrior
+  (let [make-attack-event (assoc-in events/make-attack-event [:data :target-i] warrior-i)
+        [game make-attack-event-after] (events/fire-event make-attack-event game player-i)
+        warrior (get-in game [:world :entities warrior-i])
+        player (get-in game [:world :entities player-i])
+        player-physics (help/find-physics-component (:components player))
+        player-hp (:hp player-physics)
+        warrior-physics (help/find-physics-component (:components warrior))
+        warrior-hp (:hp warrior-physics)]
+    (is (= warrior-hp 16))
+    (is (= player-hp 20)))
+  )
 
 ; (deftest add-item
 ;   ; Test add-item events

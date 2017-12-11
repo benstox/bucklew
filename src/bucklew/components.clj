@@ -30,10 +30,8 @@
   [game entity-i component-i event]
   (let [{:keys [amount type target-i] :as event-data} (:data event)
         take-damage-event (events/map->Event {:nomen :take-damage, :data {:amount amount :type type}})
-        [attacked-entity take-damage-event] (events/fire-event take-damage-event game target-i)
-        new-event-data (assoc event-data :target attacked-entity, :take-damage-event take-damage-event)
-        new-event (assoc event :data new-event-data)]
-    [game new-event]))
+        [new-game take-damage-event] (events/fire-event take-damage-event game target-i)]
+    [new-game event]))
 
 (defn normal-reduce-amount
   "Component strength will reduce the amount that an event carries with it."

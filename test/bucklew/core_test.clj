@@ -6,7 +6,9 @@
       [bucklew.items :as items]
       [bucklew.helpers :as help]
       [bucklew.creatures :as creats]
-      [bucklew.world.core :as world-core]))
+      [bucklew.world.core :as world-core]
+      [com.rpl.specter :as specter :refer [select select-one selected? setval transform walker ALL FIRST INDEXED-VALS LAST MAP-VALS NONE]]
+      [ebenbild.core :as eb]))
 
 (deftest basic-test
   ; Test some basics surrounding entities, components and events.
@@ -157,106 +159,131 @@
     (is (= player-hp 20)))
   )
 
-; (deftest add-item
-;   ; Test add-item events
-;   (def player (ents/sort-components
-;     (ents/map->Entity {
-;       :id 1
-;       :nomen "Player"
-;       :components [
-;         (comps/Armour {:strength 2})
-;         (comps/Physics {:max-hp 20 :hp 20})
-;         (comps/CanAttack)
-;         (comps/Inventory)
-;         (comps/Equipment)]})))
-;   (def pizza-event (events/map->Event {:nomen :add-item :data {:item items/pizza}}))
-;   (def temp (ents/receive-event player pizza-event))
-;   (def player (first temp))
-;   (def exhausted-event (last temp))
-;   (is (nil? (get-in [:data :item] exhausted-event)))
-;   (def nomen-is-inventory (partial help/nomen-is :inventory))
-;   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
-;   (is (= (count inventory) 1))
-;   (is (= (:nomen (first inventory)) "Pizza"))
-;   (def player (first (ents/receive-event player pizza-event)))
-;   (def player (first (ents/receive-event player pizza-event)))
-;   (def player (first (ents/receive-event player pizza-event)))
-;   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
-;   (is (= (count inventory) 4))
-;   (def player (first (ents/receive-event player (events/map->Event {:nomen :add-item :data {:item items/sword}}))))
-;   (def inventory (:contents (first (filter nomen-is-inventory (:components player)))))
-;   (is (= (count inventory) 4))
-;   (def nomen-is-equipment (partial help/nomen-is :equipment))
-;   (def equipment (first (filter nomen-is-equipment (:components player))))
-;   (is (= (count (:contents equipment)) 1))
-;   (is (= (:nomen (first (:contents equipment))) "Sword"))
-;   (def nomen-is-location (partial help/nomen-is :location))
-;   (is (empty? (filter nomen-is-location (:components (first (:contents equipment))))))
-;   (def sword-equipped-in (:equipped-in (first (filter :equipped-in (:components (first (:contents equipment)))))))
-;   (is (= (count sword-equipped-in) 1))
-;   (is (= (first sword-equipped-in) :right-hand))
-;   )
+(deftest add-item
+  ; Test add-item events
+  (def player-i 0)
+  (def item-i 1)
+  (def player (ents/sort-components
+    (ents/map->Entity {
+      :id 1
+      :nomen "Player"
+      :components [
+        (comps/Armour {:strength 2})
+        (comps/Physics {:max-hp 20 :hp 20})
+        (comps/CanAttack)
+        (comps/Inventory)
+        (comps/Equipment)]})))
+  ; there are four pizzas and a sword in the game
+  (def game {:world {:entities [player
+                                items/pizza
+                                items/pizza
+                                items/pizza
+                                items/pizza
+                                items/sword]}})
+  (is (= (count (get-in game [:world :entities])) 6))
+  (def add-next-item (events/map->Event {:nomen :add-item :data {:item-i item-i}}))
+  ; add a pizza to the player's inventory
+  (let [[game exhausted-event] (events/fire-event add-next-item game player-i)
+        player (get-in game [:world :entities player-i])
+        inventory-contents (select [:components ALL (eb/like {:nomen :inventory}) :contents ALL] player)]
+    (is (nil? (get-in [:data :item] exhausted-event)))
+    (is (= (count inventory-contents) 1))
+    (is (= (:nomen (first inventory-contents)) "Pizza"))
+    (is (= (count (get-in game [:world :entities])) 5))
+    ; add three more pizzas to the player's inventory
+    (let [[game event] (events/fire-event add-next-item game player-i)
+          [game event] (events/fire-event add-next-item game player-i)
+          [game event] (events/fire-event add-next-item game player-i)
+          player (get-in game [:world :entities player-i])
+          inventory-contents (select [:components ALL (eb/like {:nomen :inventory}) :contents ALL] player)]
+      (is (= (count inventory-contents) 4))
+      (is (= (count (get-in game [:world :entities])) 2))
+      ; add and equip a sword into the right hand
+      (let [[game event] (events/fire-event add-next-item game player-i)
+            player (get-in game [:world :entities player-i])
+            inventory-contents (select [:components ALL (eb/like {:nomen :inventory}) :contents ALL] player)
+            equipment (select-one [:components ALL (eb/like {:nomen :equipment})] player)]
+        (is (= (count inventory-contents) 4))
+        (is (= (count (:contents equipment)) 1))
+        (is (= (count (get-in game [:world :entities])) 1))
+        (is (= (:nomen (first (:contents equipment))) "Sword"))
+        (let [location-components (select [:contents FIRST :components ALL (eb/like {:nomen :location})] equipment)
+              sword-equipped-in (select-one [:contents FIRST :components ALL (selected? #(contains? % :equipped-in)) :equipped-in] equipment)]
+          (is (empty? location-components))
+          (is (= (count sword-equipped-in) 1))
+          (is (= (first sword-equipped-in) :right-hand))
+          (println "#############################")
+          (println "####### ADD ITEM TEST #######")
+          (println "#############################")
+          (println (str player))
+          (println "#############################")
+  )))))
 
-; (deftest drawing-entities
-;   ; test getting the drawing data from an entity
-;   (def player (creats/make-player {:x 185 :y -33}))
-;   (let [[player draw-event] (ents/receive-event player events/draw)
-;         {:keys [x y glyph fg-colour bg-colour]} (:data draw-event)]
-;     (is (= x 185))
-;     (is (= y -33))
-;     (is (= glyph "@"))
-;     (is (= fg-colour "ffffff"))
-;     (is (= bg-colour "000000")))
-;   )
+(deftest drawing-entities
+  ; test getting the drawing data from an entity
+  (def player-i 0)
+  (def player (creats/make-player {:x 185 :y -33}))
+  (def game {:world {:entities [player]}})
+  (let [[game draw-event] (events/fire-event events/draw game player-i)
+        {:keys [x y glyph fg-colour bg-colour]} (:data draw-event)]
+    (is (= x 185))
+    (is (= y -33))
+    (is (= glyph "@"))
+    (is (= fg-colour "ffffff"))
+    (is (= bg-colour "000000")))
+  )
 
-; (deftest move-player
-;   ; test issuing a move command to a player on a simple map
-;   ; ####
-;   ; #@.#
-;   ; ##.#
-;   ; ####
-;   (def wall (:wall world-core/tiles))
-;   (def floor (:floor world-core/tiles))
-;   (def tiles [[wall wall  wall  wall]
-;               [wall floor floor wall]
-;               [wall wall  floor wall]
-;               [wall wall  wall  wall]])
-;   (def player (creats/make-player {:x 1 :y 1}))
-;   (def entities [player])
-;   (def world {:entities entities :tiles tiles})
-;   (defn move-event
-;     [direction]
-;     (events/map->Event {:nomen :move :data {:direction direction
-;                                             :world world}}))
-;   (def move-east (move-event :e))
-;   (def nomen-is-location (partial help/nomen-is :location))
-;   (def location (first (filter nomen-is-location (:components player))))
-;   (is (= (:x location) 1))
-;   (is (= (:y location) 1))
-;   ; move east and you should get {:x 2 :y 1}
-;   (let [[player event] (ents/receive-event player move-east)]
-;     (def location (first (filter nomen-is-location (:components player))))
-;     (is (= (:x location) 2))
-;     (is (= (:y location) 1))
-;     (def move-north (move-event :n))
-;     ; try to move north and you should stay put
-;     (let [[player event] (ents/receive-event player move-north)]
-;       (def location (first (filter nomen-is-location (:components player))))
-;       (is (= (:x location) 2))
-;       (is (= (:y location) 1))
-;       (def move-south (move-event :s))
-;       ; move south and you should get {:x 2 :y 2}
-;       (let [[player event] (ents/receive-event player move-south)]
-;         (def location (first (filter nomen-is-location (:components player))))
-;         (is (= (:x location) 2))
-;         (is (= (:y location) 2))
-;         (def move-west (move-event :w))
-;         ; try to move west and you should stay put
-;         (let [[player event] (ents/receive-event player move-west)]
-;           (def location (first (filter nomen-is-location (:components player))))
-;           (is (= (:x location) 2))
-;           (is (= (:y location) 2))))))
-;   )
+(deftest move-player
+  ; test issuing a move command to a player on a simple map
+  ; ####
+  ; #@.#
+  ; ##.#
+  ; ####
+  (def wall (:wall world-core/tiles))
+  (def floor (:floor world-core/tiles))
+  (def tiles [[wall wall  wall  wall]
+              [wall floor floor wall]
+              [wall wall  floor wall]
+              [wall wall  wall  wall]])
+  (def player (creats/make-player {:x 1 :y 1}))
+  (def entities [player])
+  (def world (world-core/map->World {:entities entities :tiles tiles}))
+  (def game {:world world})
+  (defn move-event
+    [direction]
+    (events/map->Event {:nomen :move :data {:direction direction}}))
+  (def nomen-is-location (partial help/nomen-is :location))
+  (def location (select-one [:components ALL (eb/like {:nomen :location})] player))
+  (is (= (:x location) 1))
+  (is (= (:y location) 1))
+  ; move east and you should get {:x 2 :y 1}
+  (println "Firing the first MOVE EVENT ....")
+  (let [[game event] (events/fire-event (move-event :e) game player-i)
+        player (get-in game [:world :entities player-i])
+        location (select-one [:components ALL (eb/like {:nomen :location})] player)]
+    (println (str "after the move " player))
+    (is (= (:x location) 2))
+    (is (= (:y location) 1))
+    ; try to move north and you should stay put
+    (let [[game event] (events/fire-event (move-event :n) game player-i)
+          player (get-in game [:world :entities player-i])
+          location (select-one [:components ALL (eb/like {:nomen :location})] player)]
+      (is (= (:x location) 2))
+      (is (= (:y location) 1))
+      ; move south and you should get {:x 2 :y 2}
+      (let [[game event] (events/fire-event (move-event :s) game player-i)
+            player (get-in game [:world :entities player-i])
+            location (select-one [:components ALL (eb/like {:nomen :location})] player)]
+        (is (= (:x location) 2))
+        (is (= (:y location) 2))
+        ; try to move west and you should stay put
+        (let [[game event] (events/fire-event (move-event :w) game player-i)
+              player (get-in game [:world :entities player-i])
+              location (select-one [:components ALL (eb/like {:nomen :location})] player)]
+          (is (= (:x location) 2))
+          (is (= (:y location) 2))
+  ))))
+  )
 
 ; (deftest whirling-dervish
 ;   ; test out the whirling dervish AI, should "spin" in a tight circle

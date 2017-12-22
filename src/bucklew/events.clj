@@ -31,6 +31,7 @@
         indexed-components (help/enumerate components)
         relevant-components (filter (comp #(contains? % nomen) second) indexed-components)]
     (println (str nomen " " (count relevant-components)))
+    (println (str nomen " relevant components: " (vec relevant-components)))
     (if (not-empty relevant-components)
       (loop [game game
              event event
@@ -39,8 +40,8 @@
               rest-of-components (rest relevant-components)
               component-fn (nomen component)
               [new-game new-event] (component-fn game entity-i component-i event)]
-          (println (str "fire-event " nomen " " (get-in new-game [:world :entities entity-i])))
+          (println (str "just run " nomen " component-fn " (get-in new-game [:world :entities entity-i])))
           (if (empty? rest-of-components)
-            [new-game new-event]  ; return a (possibly) changed entity and event
-            (recur new-game new-event rest-of-components))))
+            (do (println "returning") [new-game new-event])  ; return a (possibly) changed entity and event
+            (do (println "recurring") (recur new-game new-event rest-of-components)))))
       [game event]))) ; no change to either the entity or the event

@@ -83,3 +83,8 @@
 
 (defn enumerate [s]
   (map-indexed vector s))
+
+(defn vec-remove
+  "Remove an element from a collection by index."
+  [coll pos]
+  (vec (concat (subvec coll 0 pos) (subvec coll (inc pos)))))

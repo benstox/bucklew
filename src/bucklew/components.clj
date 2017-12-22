@@ -6,8 +6,9 @@
             [bucklew.ui.core :as ui]
             [bucklew.ui.drawing :as draw]
             [bucklew.world.core :as world-core]
-            [lanterna.screen :as s]
-            [com.rpl.specter :as specter :refer [select transform setval ALL]]))
+            [com.rpl.specter :as specter :refer [select select-one selected? transform setval ALL INDEXED-VALS]]
+            [ebenbild.core :as eb]
+            [lanterna.screen :as s]))
 
 ;; COMPONENT FUNCTIONS -----------------------------------------------------------------------------
 ;; * always take [game entity-i component-i event] arguments,
@@ -57,14 +58,19 @@
 (defn inventory-add-item
   "Try to add an item to an inventory."
   [game entity-i component-i event]
-  (if-let [item (get-in event [:data :item])]
-    (let [inventory-comp (get-in game [:world :entities entity-i :components component-i])
+  (if-let [item-i (get-in event [:data :item-i])]
+    (let [item (get-in game [:world :entities item-i])
+          inventory-comp (get-in game [:world :entities entity-i :components component-i])
           num-items (count (:contents inventory-comp))
           capacity (:capacity inventory-comp)]
       (if (< num-items capacity)
-        (let [new-event (assoc-in event [:data :item] nil)
+        (let [new-event (assoc-in event [:data :item-i] nil)
               new-item (ents/remove-components-by-nomen item :location)
-              new-game (update-in game [:world :entities entity-i :components component-i :contents] #(conj % new-item))]
+              ; put the item into the inventory
+              new-game (update-in game [:world :entities entity-i :components component-i :contents] #(conj % new-item))
+              ; remove the item from the list of world entities
+              new-entities (help/vec-remove (get-in new-game [:world :entities]) item-i)
+              new-game (assoc-in new-game [:world :entities] new-entities)]
           [new-game new-event]) ; there's a free space so add the item, and send the event away empty
         [game event])) ; inventory full so no change
     [game event])) ; no item so no change
@@ -73,11 +79,13 @@
   "Try to equip an item."
   [game entity-i component-i event]
   (if-let [item-i (get-in event [:data :item-i])]
-    (let [get-equip-info-event (events/map->Event {:nomen :get-equip-info})
-          [item finished-equip-info-event] (events/fire-event get-equip-info-event game item-i)
-          equip-info (:data finished-equip-info-event)]
-      (if equip-info
-        (let [{:keys [slot-types slots-required can-be-equipped-i]} equip-info
+    (let [item (get-in game [:world :entities item-i])
+          can-be-equipped (specter/select-one
+                            [:components
+                             INDEXED-VALS
+                             (selected? 1 (eb/like {:nomen :can-be-equipped}))] item)]
+      (if can-be-equipped
+        (let [[can-be-equipped-i {:keys [slot-types slots-required equipped-in]}] can-be-equipped
               equipment-comp (get-in game [:world :entities entity-i :components component-i])
               right-type-slots (filter #(contains? slot-types (:type %)) (:slots equipment-comp))
               items-already-equipped (:contents equipment-comp)
@@ -85,32 +93,20 @@
               possible-slots (filter #(not (contains? filled-slots (:nomen %))) right-type-slots)
               num-possible-slots (count possible-slots)]
           (if (<= slots-required num-possible-slots)
-            (let [new-event (assoc-in event [:data :item] nil)
+            (let [new-event (assoc-in event [:data :item-i] nil)
                   slots-to-use (take slots-required possible-slots)
                   nomen-slots-to-use (vec (map :nomen slots-to-use))
                   new-item (assoc-in item [:components can-be-equipped-i :equipped-in] nomen-slots-to-use)
                   new-item (ents/remove-components-by-nomen new-item :location)
-                  new-game (update-in game [:world :entities entity-i :components component-i :contents] #(conj % new-item))]
+                  ; equip the item
+                  new-game (update-in game [:world :entities entity-i :components component-i :contents] #(conj % new-item))
+                  ; remove the item from the list of world entities
+                  new-entities (help/vec-remove (get-in new-game [:world :entities]) item-i)
+                  new-game (assoc-in new-game [:world :entities] new-entities)]
               [new-game new-event]) ; there is an appropriate slot so equip the item!
             [game event])) ; equipment full so no change
         [game event])) ; item cannot be equipped so no change
     [game event])) ; no item so no change
-
-(defn normal-get-equip-info
-  "Gets called by a CanBeEquipped component and send back relevant info and index for equipping
-  this item."
-  [game entity-i component-i event]
-  (if (nil? (:data event))
-    (let [can-be-equipped-i component-i
-          can-be-equipped (get-in game [:world :entities entity-i :components component-i])
-          {:keys [slot-types slots-required equipped-in]} can-be-equipped
-          info {:slot-types slot-types
-                :slots-required slots-required
-                :equipped-in equipped-in
-                :can-be-equipped-i can-be-equipped-i}
-          new-event (assoc event :data info)]
-      [game new-event]) ; returns data under the new-event :data key
-    [game event])) ; only returns info if target is nil
 
 (defn unequip
   [game entity-i component-i event]
@@ -170,6 +166,7 @@
           (let [new-event (assoc event :data nil)
                 new-location-comp (assoc location-comp :x new-x :y new-y)
                 new-game (assoc-in game [:world :entities entity-i :components component-i] new-location-comp)]
+            (println new-location-comp)
             (println (str "normal move " (get-in new-game [:world :entities entity-i])))
             [new-game new-event])
           [game event])) ; wall tile, don't move
@@ -195,14 +192,14 @@
       (if (:restarted game)
         [game (assoc event :data game)] ; send the restarted game straight back
         (do                             ; otherwise proceed as normal
-          (println "###")
+          ; (println "###")
           (draw/draw-game game)
           (let [input (s/get-key-blocking screen)
                 {:keys [world uis]} game]
             (if-let [direction (get help/keys-to-directions input)]
               (let [move-data {:direction direction}
                     [new-game move-event] (events/fire-event (assoc events/move :data move-data) game entity-i)]
-                (println (str "players-tick " (get-in new-game [:world :entities entity-i])))
+                ; (println (str "players-tick " (get-in new-game [:world :entities entity-i])))
                 [new-game event])
               (recur (case input
                 ; menu stuff, quit, etc. or unused keys
@@ -313,18 +310,21 @@
 
 (defrecord EquipmentComponent [nomen priority contents slots add-item remove-item]
   Object
-  (toString [this]
-    (let [item-equip-info-temp (map #(ents/receive-event % (events/map->Event {:nomen :get-equip-info})) contents)
-          items (map first item-equip-info-temp)
-          places-equipped (map (comp :equipped-in :data second) item-equip-info-temp)
-          item-locations (into {} (map #(into {} (for [place %1] {place %2})) places-equipped items))]
-      (str
-        "Equipment\n"
-        (clojure.string/join
-          (for [slot slots]
-            (if (contains? item-locations (:nomen slot))
-              (str "* " (:desc slot) " -- " ((:nomen slot) item-locations) "\n")
-              (str "* " (:desc slot) " -- [empty]\n"))))))))
+  (toString [this]   
+    (letfn [(transform-item-locations [item-location]
+              (let [[item-name locations] item-location]
+                (for [location locations]
+                  {location item-name})))]
+      (let [; new way [["Boots" [:feet]] ["Claymore" [:right-hand :left-hand]]]
+            item-locations (select [ALL (specter/collect-one :nomen) :components ALL (eb/like {:nomen :can-be-equipped}) :equipped-in] contents)
+            item-locations (apply merge (flatten (map transform-item-locations item-locations)))]
+        (str
+          "Equipment\n"
+          (clojure.string/join
+            (for [slot slots]
+              (if (contains? item-locations (:nomen slot))
+                (str "* " (:desc slot) " -- " ((:nomen slot) item-locations) "\n")
+                (str "* " (:desc slot) " -- [empty]\n")))))))))
 (defn Equipment [& args] (map->EquipmentComponent (into args {:nomen :equipment
                                                               :priority 25
                                                               :contents []
@@ -340,8 +340,7 @@
                                                                       :priority 200
                                                                       :slot-types #{:hand}
                                                                       :slots-required 1
-                                                                      :equipped-in []
-                                                                      :get-equip-info normal-get-equip-info})))
+                                                                      :equipped-in []})))
 
 (defrecord TakesTurnComponent [nomen priority tick data])
 (defn TakesTurn [& args] (map->TakesTurnComponent (into args {:nomen :takes-turn, :priority 5, :tick normal-tick, :data {}})))
